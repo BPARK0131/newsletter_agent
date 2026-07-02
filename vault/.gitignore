@@ -1,0 +1,5 @@
+# Obsidian 로컬 세션·캐시 (vault Markdown·registry는 Git 추적)
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.obsidian/cache
+.trash/

@@ -1,0 +1,674 @@
+# sources.yaml
+# Multi-Agent 기반 IP Network 기술 동향 뉴스레터 — MVP
+# v0.6 (소스 검증 결과 반영 — 2026-06-29)
+#
+# 역할: Research Agent Tool이 읽는 소스 설정 파일
+#   - 수집 대상 URL / 방식 / 편향 위험 정의
+#   - 카테고리별 키워드 정의 (Analysis Agent의 분류 기준)
+#   - Tavily 조건부 보강 설정 (카테고리 공백 시만)
+#   - Fallback 샘플 데이터 경로
+#
+# v0.6 변경 사항 (소스 검증 결과 반영):
+#   - RIPE Labs: URL → labs.ripe.net/feed.xml (RSS 확인), collection_mode → rss
+#   - Kentik Blog: RSS 없음 → collection_mode: tavily_search
+#   - OCP Blog: 신규 추가 (RSS 확인 — opencompute.org/blog/rss)
+#   - Cisco Blog: URL → blogs.cisco.com/networking/feed (RSS 확인)
+#   - Nokia Blog: 활성화 (enabled: true) + RSS URL → nokia.com/blog/rss/
+#   - Arista Blog / Juniper Blog: excluded_sources로 이동 (RSS·직접 수집 불가)
+#   - IETF Datatracker: URL → API 엔드포인트 (api/v1/doc/document/)
+#   - TM Forum: URL → tmforum.org/news-insight/newsroom (Tavily 대상)
+#   - 신규: news_sources 섹션 (Light Reading, TechTarget Network Management)
+#   - 신규: community_sources 섹션 (Reddit r/networking — enabled: false)
+#   - v0.7: Reddit community_sources 제외 → excluded_sources 로 이동
+#   - Ciena Blog: deferred_sources로 이동 (RSS 없음, Tavily 후보)
+#
+# v0.5 제거 항목 (계속 유지):
+#   - node_policies (코드에서 직접 구현)
+#   - embedding_similarity (Vector DB 없이 불가 → keyword만 사용)
+#   - deduplication content_hash (MVP는 URL 기준만)
+
+# ─────────────────────────────────────────────────────────────
+# Obsidian Vault 설정
+# ─────────────────────────────────────────────────────────────
+obsidian:
+  vault_path: ""   # 환경변수 OBSIDIAN_VAULT_PATH 없을 때 fallback
+
+  vault_subfolders:
+    raw:        "01_raw"
+    review:     "02_review"
+    approved:   "03_approved"
+    newsletter: "04_newsletter"   # draft/, published/, ietf_radar.md
+    newsletter_used: "06_newsletter_used"  # 발행에 사용된 승인 기사 {issue_date}/
+
+  required_frontmatter_keys:
+    - title
+    - url
+    - source_name
+    - published
+    - is_vendor
+
+
+# ─────────────────────────────────────────────────────────────
+# 수집 공통 정책
+# ─────────────────────────────────────────────────────────────
+source_policy:
+  max_articles_per_source_per_run: 10
+  max_article_age_days: 30
+  min_text_length_chars: 800
+
+  deduplication:
+    enabled: true
+    strategy: "canonical_url"   # MVP: URL 기준. 후속: title_similarity
+
+  relevance_scoring:
+    keyword_match_weight: 1.0
+    newsletter_include_threshold: 0.3
+
+
+# ─────────────────────────────────────────────────────────────
+# 카테고리 정의
+# id 값은 ArticleAnalysis.category Literal과 완전히 일치시킬 것
+# ─────────────────────────────────────────────────────────────
+categories:
+
+  - id: "Backbone/Backhaul"
+    description: "IP/MPLS 백본, 라우팅, RAN Transport 및 백홀망"
+    keywords:
+      - BGP
+      - IS-IS
+      - OSPF
+      - MPLS
+      - Segment Routing
+      - SR-MPLS
+      - SRv6
+      - SR Policy
+      - Traffic Engineering
+      - TI-LFA
+      - FRR
+      - Peering
+      - Transit
+      - IX
+      - Mobile Backhaul
+      - RAN Transport
+      - xHaul
+      - Cell Site Router
+      - SyncE
+      - PTP
+      - QoS
+
+  - id: "Transport/DCI"
+    description: "Metro/Core Transport, Packet/Optical, DCI"
+    keywords:
+      - Transport Network
+      - Metro Core
+      - Packet Transport
+      - Carrier Ethernet
+      - OTN
+      - ROADM
+      - DWDM
+      - Coherent Optics
+      - 400G
+      - 800G
+      - Data Center Interconnect
+      - DCI
+      - Protection Switching
+
+  - id: "DataCenter Network"
+    description: "DC Fabric, Leaf-Spine, AI DC, EVPN/VXLAN, SONiC"
+    keywords:
+      - Data Center Network
+      - DC Fabric
+      - Leaf-Spine
+      - Clos Fabric
+      - EVPN
+      - VXLAN
+      - EVPN-VXLAN
+      - BGP EVPN
+      - AI Data Center
+      - AI Cluster
+      - GPU Cluster
+      - Backend Network
+      - 51.2T
+      - 102.4T
+      - Switching ASIC
+      - SONiC
+      - RoCEv2
+      - RDMA
+      - PFC
+      - ECN
+      - Open Compute
+      - OCP
+
+  - id: "IP Security"
+    description: "라우팅 보안, DDoS 대응, Control Plane 보호"
+    keywords:
+      - RPKI
+      - ROA
+      - ROV
+      - Route Origin Validation
+      - Route Leak
+      - BGP Hijack
+      - ASPA
+      - BGPsec
+      - MANRS
+      - DDoS
+      - FlowSpec
+      - RTBH
+      - Security Advisory
+      - CVE
+      - CoPP
+
+  - id: "NetDevOps"
+    description: "네트워크 자동화, Telemetry, Intent, Closed-loop"
+    keywords:
+      - Network Automation
+      - NetDevOps
+      - OpenConfig
+      - YANG
+      - NETCONF
+      - RESTCONF
+      - gNMI
+      - Streaming Telemetry
+      - Network Observability
+      - Intent-based Networking
+      - Closed-loop Automation
+      - Autonomous Network
+      - GitOps
+      - CI/CD
+      - Config Compliance
+      - Golden Config
+      - Network Digital Twin
+      - AIOps
+
+  - id: "Standards/Architecture"
+    description: "표준화 및 아키텍처 동향 (IETF, TM Forum)"
+    keywords:
+      - RFC
+      - Internet-Draft
+      - IETF
+      - TM Forum
+      - Autonomous Networks
+      - ODA
+      - Open Digital Architecture
+      - Zero-touch
+      - Self-healing
+      - Self-optimizing
+      - Digital Twin
+
+
+# ─────────────────────────────────────────────────────────────
+# Tier 1 — 기술 기준 소스 (operator_blog / open_infra)
+# bias_risk: low | verification_required: false | direct_citation: true
+# ─────────────────────────────────────────────────────────────
+regular_sources:
+
+  - id: apnic_blog
+    name: "APNIC Blog"
+    type: operator_blog
+    url: "https://blog.apnic.net/feed/"
+    collection_mode: rss
+    bias_risk: low
+    enabled: true
+    max_articles_per_run: 10
+    pretested: true             # RSS 확인 완료 (2026-06-29)
+    notes: "BGP, Routing, Internet 운영. Tier 1 기술 기준 소스."
+    category_hint:
+      - "Backbone/Backhaul"
+      - "IP Security"
+      - "NetDevOps"
+
+  - id: ripe_labs
+    name: "RIPE Labs"
+    type: operator_blog
+    url: "https://labs.ripe.net/feed.xml"   # v0.6: 실제 RSS URL 확인 반영
+    collection_mode: rss
+    bias_risk: low
+    enabled: true
+    max_articles_per_run: 10
+    pretested: true             # RSS 확인 완료 (2026-06-29)
+    notes: "Internet measurement, routing, 운영 분석. Tier 1 기술 기준 소스."
+    category_hint:
+      - "Backbone/Backhaul"
+      - "IP Security"
+
+  - id: ocp_blog
+    name: "OCP Blog"
+    type: open_infra
+    url: "https://www.opencompute.org/blog/rss"   # v0.6: 신규 추가, RSS 확인 완료
+    collection_mode: rss
+    body_extract: tavily_extract    # 개별 기사 페이지 403 차단 → Tavily Extract 사용
+    bias_risk: low
+    enabled: true
+    max_articles_per_run: 10
+    pretested: true             # RSS 확인 완료 (2026-06-29)
+    notes: "DC NW, Open Infra, AI DC. Disaggregated/Open Networking 기술. Tier 1. 기사 페이지 403으로 Tavily Extract 사용."
+    category_hint:
+      - "DataCenter Network"
+      - "Standards/Architecture"
+
+  - id: kentik_blog
+    name: "Kentik Blog"
+    type: engineering_blog
+    url: "https://www.kentik.com/blog/"
+    collection_mode: blog_index       # HTML 인덱스 파싱 → Most Recent URL 추출
+    body_extract: tavily_extract      # 본문 추출: Tavily Extract (없으면 MarkItDown fallback)
+    bias_risk: medium
+    verification_required: true
+    enabled: true
+    max_articles_per_run: 5
+    pretested: true
+    notes: "BGP, Outage, Observability. RSS 없음. 인덱스 파싱으로 최신 URL 추출 후 Tavily Extract로 본문 수집."
+    article_base_url: "https://www.kentik.com"
+    article_url_pattern: "/blog/"
+    url_must_not_contain_any:
+      - "/blog/author/"
+      - "/blog/category/"
+      - "/blog/tag/"
+      - "/blog/page/"
+    # 날짜 기준 수집 (max_article_age_days는 source_policy에서 상속)
+    max_article_age_days: 30
+    # 카테고리 필터 없음 — 블로그 홈에 노출되는 모든 최신 글 수집
+    # (노이즈 제거는 review_script.py 단계에서 수행)
+    category_hint:
+      - "Backbone/Backhaul"
+      - "IP Security"
+      - "NetDevOps"
+
+
+# ─────────────────────────────────────────────────────────────
+# Tier 2 — 벤더 소스
+# verification_required: true → Analysis Agent가 편향 검토 수행
+# direct_citation: true (원문 링크 제공 가능하나 요약은 Vendor_Verification_Node 통과)
+# ─────────────────────────────────────────────────────────────
+vendor_sources:
+
+  - id: cisco_networking_blog
+    name: "Cisco Networking Blog"
+    type: vendor_blog
+    url: "https://blogs.cisco.com/networking/feed"   # v0.6: networking 전용 RSS 확인
+    collection_mode: rss
+    bias_risk: high
+    verification_required: true
+    enabled: true
+    max_articles_per_run: 10
+    pretested: true             # RSS 확인 완료 (2026-06-29)
+    notes: "벤더 기술 동향. 편향 검증 필수. Tier 2."
+    category_hint:
+      - "Backbone/Backhaul"
+      - "DataCenter Network"
+      - "IP Security"
+      - "NetDevOps"
+
+  - id: nokia_blog
+    name: "Nokia Blog"
+    type: vendor_blog
+    url: "https://www.nokia.com/blog/rss/"   # v0.6: RSS URL 확인, enabled: true로 변경
+    collection_mode: rss
+    body_extract: tavily_extract    # 개별 기사 페이지 403 차단 → Tavily Extract 사용
+    bias_risk: high
+    verification_required: true
+    enabled: true                            # v0.6: 활성화 (이전 v0.5는 false)
+    max_articles_per_run: 10
+    pretested: true             # RSS 확인 완료 (2026-06-29)
+    notes: "Telco, DC, AI/Cloud Network. Tier 2. 기사 페이지 403으로 Tavily Extract 사용."
+    category_hint:
+      - "Transport/DCI"
+      - "Backbone/Backhaul"
+      - "DataCenter Network"
+
+
+# ─────────────────────────────────────────────────────────────
+# Tier 3 — 뉴스 소스
+# 역할: 트렌드 감지 (신호). 기술 사실 검증은 Tier 1 소스로 위임.
+# direct_citation: false (링크 제공은 가능하나 뉴스레터 본문 인용 불가)
+# ─────────────────────────────────────────────────────────────
+news_sources:
+
+  - id: lightreading
+    name: "Light Reading"
+    type: news_media
+    url: "https://www.lightreading.com/rss.xml"   # v0.6: 신규 추가, RSS 확인 완료
+    collection_mode: rss
+    bias_risk: low
+    verification_required: true
+    direct_citation: false      # 트렌드 감지용 — 본문 인용 불가
+    enabled: true
+    max_articles_per_run: 10
+    pretested: true             # RSS 확인 완료 (2026-06-29)
+    notes: "Telco 산업 뉴스. 트렌드 감지용 신호 소스. Tier 3."
+    category_hint:
+      - "Backbone/Backhaul"
+      - "Transport/DCI"
+      - "Standards/Architecture"
+
+  - id: techtarget_network_management
+    name: "TechTarget Network Management"
+    type: news_media
+    url: "https://www.techtarget.com/searchnetworking/rss/Network-management-news-advice-and-technical-information.xml"
+    collection_mode: rss
+    bias_risk: low
+    verification_required: true
+    direct_citation: false      # 트렌드 감지용 — 본문 인용 불가
+    enabled: true
+    max_articles_per_run: 10
+    pretested: true             # RSS 확인 완료 (2026-06-29)
+    notes: "NetOps, Network Management, AIOps. 트렌드 감지용 신호 소스. Tier 3."
+    category_hint:
+      - "NetDevOps"
+      - "Standards/Architecture"
+
+
+# ─────────────────────────────────────────────────────────────
+# 커뮤니티 소스 — MVP에서 제외 (Reddit → excluded_sources)
+# ─────────────────────────────────────────────────────────────
+community_sources: []
+
+
+# ─────────────────────────────────────────────────────────────
+# 레퍼런스 소스
+# collect_by_default: false — 키워드 트리거 시만 조회
+# ─────────────────────────────────────────────────────────────
+reference_sources:
+
+  - id: ietf_datatracker
+    name: "IETF Datatracker"
+    type: standard_reference
+    url: "https://datatracker.ietf.org/api/v1/doc/document/"
+    collection_mode: api
+    collect_by_default: false
+    enabled: true
+    review_mode: standards_signal          # review_script 대상 아님 → standards_radar_script
+    output_section: standardization_radar
+    direct_citation: true
+    max_lookup_results: 5                 # WG당 최신 1건 × 5 WG
+    max_per_wg: 1
+    max_article_age_days: 730             # 2년 이내 갱신 문서만
+    api_params:
+      limit: 15                           # WG별 fetch 여유분 (필터 후 1건 선택)
+    exclude_doc_prefixes:
+      - agenda-
+      - minutes-
+      - slides-
+    trigger_keywords:
+      - RFC
+      - Internet-Draft
+      - BGP
+      - EVPN
+      - SRv6
+      - Segment Routing
+      - Route Leak
+    include_keywords:
+      - bgp
+      - evpn
+      - vxlan
+      - srv6
+      - segment routing
+      - is-is
+      - ospf
+      - route leak
+      - routing
+    wg_filter:
+      - idr
+      - bess
+      - lsr
+      - spring
+      - grow
+    wg_radar:
+      idr:
+        tech_area: "BGP"
+        change_meaning: "BGP 확장·정책·Route Leak·Routing Security 논의 추적"
+      bess:
+        tech_area: "EVPN/VPN"
+        change_meaning: "DC Fabric 및 VPN 서비스 구현 방향과 연결"
+      lsr:
+        tech_area: "IS-IS/OSPF"
+        change_meaning: "Link State 라우팅·IGP 확장 동향과 연결"
+      spring:
+        tech_area: "Segment Routing"
+        change_meaning: "SR-MPLS/SRv6 및 백본·기간망 아키텍처 전환 흐름"
+      grow:
+        tech_area: "Global Routing Ops"
+        change_meaning: "글로벌 라우팅 운영 안정성·BGP 운영 실무와 연결"
+    notes: >
+      표준 변화 감지용 레퍼런스. 뉴스 기사 소스가 아님.
+      standards_radar_script.py 로 표준화 레이더 섹션 생성.
+
+  - id: tmforum_newsroom
+    name: "TM Forum Newsroom"
+    type: telco_framework_reference
+    url: "https://www.tmforum.org/news-insight/newsroom"
+    collection_mode: blog_index      # 정적 HTML 파싱 → 최신순 수집 (RSS 없음)
+    body_extract: tavily_extract     # 본문: Tavily Extract 우선, 없으면 MarkItDown fallback
+    collect_by_default: false
+    enabled: true
+    max_articles_per_run: 5
+    max_article_age_days: 30
+    pretested: true
+    notes: "Autonomous Network, OSS/BSS, ODA. 정적 HTML 파싱으로 최신 뉴스룸 기사 수집."
+    article_base_url: "https://www.tmforum.org"
+    article_url_pattern: "/news-insight/newsroom/"
+    url_must_not_contain_any:
+      - "/news-insight/newsroom#"
+    trigger_keywords:
+      - Autonomous Network
+      - Closed-loop Automation
+      - Intent-based Networking
+      - AIOps
+      - Zero-touch
+      - ODA
+      - Open Digital Architecture
+
+
+# ─────────────────────────────────────────────────────────────
+# Tavily 카테고리 확장 검색 (v0.7)
+# 역할: RSS/API 수집을 보완하는 카테고리별 최신 동향 탐색
+# 원칙:
+# ─────────────────────────────────────────────────────────────
+# Expansion Search (Tavily) — semi-open Discovery
+#   - RSS/API 수집 보조 · open discovery (include_domains 선택)
+#   - quality gate 통과 → 01_raw/expansion/{category}/
+#   - Review → review_script (01_raw 전체)
+#   - gate 제외 로그 → logs/discovery/*.jsonl
+# ─────────────────────────────────────────────────────────────
+expansion_search:
+  provider: "tavily"
+  enabled: true
+  mode: semi_open_discovery
+  min_discovery_score: 3
+  max_saved_per_category: 3
+  max_total_results: 20
+  default_topic: news
+  default_time_range: month
+  default_max_article_age_days: 45
+  timeout_seconds: 10
+  max_retries: 1
+
+  default_exclude_domains:
+    - wikipedia.org
+    - wikimedia.org
+    - medium.com
+    - reddit.com
+    - quora.com
+    - linkedin.com
+    - youtube.com
+    - github.com
+    - stackoverflow.com
+    - pinterest.com
+    - ietf.org
+    - facebook.com
+    - fb.com
+
+  blocked_url_patterns:
+    - /wiki/
+    - /tag/
+    - /tags/
+    - /category/
+    - /categories/
+    - /author/
+    - /authors/
+    - /search/
+    - /topics/
+    - /event/
+    - /events/
+    - /webinar/
+    - /whitepaper/
+    - /product/
+    - /solutions/
+
+  failure_policy:
+    on_timeout: "continue_without_expansion"
+    on_error: "continue_without_expansion"
+
+  trusted_domains:
+    technical:
+      - blog.apnic.net
+      - labs.ripe.net
+      - opencompute.org
+      - blog.cloudflare.com
+    vendor:
+      - kentik.com
+      - blogs.cisco.com
+      - nokia.com
+    news:
+      - lightreading.com
+      - techtarget.com
+      - tmforum.org
+
+  search_categories:
+
+    - id: routing_ops
+      name: "Routing/Internet Operations"
+      query: "BGP route leak RPKI ASPA routing incident internet operations"
+      topic: news
+      time_range: month
+      max_article_age_days: 45
+      max_results: 10
+      max_saved_per_category: 3
+      vault_subdir: routing_ops
+      include_domains: []
+
+    - id: backbone_backhaul
+      name: "Backbone/Backhaul"
+      query: "peering IXP backbone subsea cable fiber cut network outage"
+      topic: news
+      time_range: month
+      max_article_age_days: 45
+      max_results: 8
+      max_saved_per_category: 2
+      vault_subdir: backbone_backhaul
+      include_domains: []
+
+    - id: datacenter_network
+      name: "DataCenter Network"
+      query: "AI fabric ethernet datacenter networking congestion telemetry RoCE"
+      topic: general
+      time_range: month
+      max_article_age_days: 60
+      max_results: 8
+      max_saved_per_category: 3
+      vault_subdir: datacenter_network
+      include_domains: []
+
+    - id: ip_security
+      name: "IP Security"
+      query: "routing security RPKI BGP hijack DNS DDoS network security operations"
+      topic: news
+      time_range: month
+      max_article_age_days: 45
+      max_results: 8
+      max_saved_per_category: 2
+      vault_subdir: ip_security
+      include_domains: []
+
+    - id: netdevops
+      name: "NetDevOps"
+      query: "network automation netdevops intent based networking telemetry config validation"
+      topic: general
+      time_range: month
+      max_article_age_days: 60
+      max_results: 10
+      max_saved_per_category: 3
+      vault_subdir: netdevops
+      include_domains: []
+
+    - id: standards_architecture
+      name: "Standards/Architecture"
+      query: "BGP EVPN SRv6 RPKI routing architecture draft RFC network standards"
+      topic: general
+      time_range: year
+      max_article_age_days: 365
+      max_results: 5
+      max_saved_per_category: 2
+      vault_subdir: standards_architecture
+      include_domains:
+        - labs.ripe.net
+        - blog.apnic.net
+        - opencompute.org
+
+
+# ─────────────────────────────────────────────────────────────
+# Fallback 설정
+# 전체 소스 수집 실패 시 로컬 샘플 데이터 사용
+# ─────────────────────────────────────────────────────────────
+fallback:
+  enabled: true
+  path: "data/sample_articles.json"
+  trigger: "all_sources_failed"
+
+
+# ─────────────────────────────────────────────────────────────
+# 보류 소스 (MVP 이후 검토 대상)
+# ─────────────────────────────────────────────────────────────
+deferred_sources:
+  - id: ciena_blog
+    name: "Ciena Blog"
+    type: vendor_blog
+    url: "https://www.ciena.com/insights/list?type=articles"
+    collection_mode: tavily_search
+    bias_risk: medium
+    enabled: false
+    notes: "Optical/DCI. RSS 없음. Tavily 수집 가능 여부 확인 필요. MVP 이후 검토."
+    tavily_query: "ciena blog DCI optical network 2026"
+
+  - id: tmforum_autonomous_networks_hub
+    name: "TM Forum Autonomous Networks Hub"
+    type: telco_framework_reference
+    url: "https://www.tmforum.org/autonomous-networks-project/"
+    collection_mode: tavily_search
+    enabled: false
+    notes: "OSS/BSS, Autonomous Network 프레임워크. 로그인 없이 접근 가능한 콘텐츠 범위 확인 필요."
+
+
+# ─────────────────────────────────────────────────────────────
+# 제외 소스 (제외 사유 기록용)
+# ─────────────────────────────────────────────────────────────
+excluded_sources:
+  - name: "Human Infrastructure"
+    reason: "2단계 수집 (링크 추출 → 원문 fetch) 복잡도가 높아 MVP에서 비활성"
+    future: "후속 확장 시 Curated_Source_Link_Extraction 로직과 함께 활성화"
+
+  - name: "Network to Code Blog"
+    reason: "도구/프레임워크 편중 가능성. MVP에서는 Nautobot 등 특정 툴 편향 주의"
+
+  - name: "Packet Pushers Heavy Networking"
+    reason: "오디오 의존도 높음. show notes 본문이 짧아 기본 수집 소스에서 제외"
+
+  - name: "Reddit r/networking"
+    id: reddit_networking
+    reason: "노이즈·신뢰도 낮음, 댓글 미수집. Tier 1~3 기술 소스 우선 정책으로 MVP 제외"
+    future: "필요 시 community_signal + RSS selftext 파싱 로직 재활성화"
+
+  - name: "Reddit r/networkautomation"
+    id: reddit_networkautomation
+    reason: "r/networking과 동일 — 참고 신호 대비 다른 소스 활용 우선"
+    future: "후속 검토"
+
+  - name: "Arista Blog"
+    id: arista_blog
+    reason: "RSS 없음. url 모드는 인덱스 페이지 1건만 fetch. SPA 구조로 직접 수집 불가"
+    future: "Tavily expansion_search 또는 blog_index+Tavily Extract 검증 후 재검토"
+
+  - name: "Juniper Blog"
+    id: juniper_blog
+    reason: "RSS 미확인·미동작. rss_or_url fallback도 블로그 기사 수집에 부적합"
+    future: "RSS URL 확인 또는 Tavily 수집 방식 검증 후 재검토"

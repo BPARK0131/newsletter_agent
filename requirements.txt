@@ -1,0 +1,26 @@
+# IP Network Newsletter Agent — 의존성
+# pip install -r requirements.txt
+
+# ── LangGraph / LangChain ───────────────────────────────────
+langgraph
+langchain-openai
+langchain-community
+
+# ── LLM 입력 정규화 ─────────────────────────────────────────
+markitdown          # HTML / PDF / 문서 → Markdown 변환
+
+# ── 수집 ────────────────────────────────────────────────────
+feedparser          # RSS 파싱
+requests            # HTTP fetch fallback
+beautifulsoup4      # HTML 파싱 (markitdown 내부 의존)
+
+# ── 설정 / 직렬화 ────────────────────────────────────────────
+pyyaml              # sources.yaml 파싱
+python-dotenv       # .env 로딩
+
+# ── 선택: Tavily 웹 검색 보강 ──────────────────────────────
+tavily-python
+
+# ── Streamlit UI ───────────────────────────────────────────
+streamlit
+pandas

@@ -1,0 +1,9 @@
+{
+  "vaultName": "IPNetworkVault",
+  "showLineNumber": true,
+  "promptDelete": true,
+  "alwaysUpdateLinks": true,
+  "attachmentFolderPath": "./attachments",
+  "newFileLocation": "folder",
+  "newFileFolderPath": "02_review"
+}

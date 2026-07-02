@@ -1,0 +1,43 @@
+# ── Secrets (never commit) ─────────────────────────────
+.env
+.env.*
+.env.example
+
+# ── Python ─────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ── IDE / OS ───────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Runtime logs & pipeline output ─────────────────────
+logs/**/*
+!logs/**/
+!logs/**/.gitkeep
+output/
+
+# ── Obsidian local UI (workspace·캐시만 제외, vault 본문은 추적) ─
+vault/.obsidian/workspace.json
+vault/.obsidian/workspace-mobile.json
+vault/.obsidian/cache
+vault/.trash/
