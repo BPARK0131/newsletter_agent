@@ -1,6 +1,6 @@
 # LangGraph 에이전트 코딩 가이드
 
-> SK mysuni 8일 코스에서 도출한 **설계 인사이트 + 코드 작성 팁**.  
+> LangGraph 학습 과정에서 도출한 **설계 인사이트 + 코드 작성 팁**.  
 > Cursor 채팅: `@docs/agent-coding-guide.md`
 
 ---
@@ -186,16 +186,16 @@ ReAct + tools  →  Agents-as-Tools  →  Supervisor  →  Hierarchical  →  Re
 | 가드레일 | `day4/lecture/code/day04_04_guardrail_input.py` |
 | Supervisor | `day5/lecture/code/day05_02_supervisor_prebuilt.py` |
 | 종합 예시 | `day8/practice/solutions/example_hr_assistant.py` |
-| **본 프로젝트 Orchestrator** | `newsletter_orchestrator.py`, `newsletter_workflow_state.py` |
-| **Editor 함수** | `newsletter_editor.py` |
+| **본 프로젝트 Orchestrator** | `newsletter_orchestrator.py` → `ipn_agent.orchestrator.workflow` / `.state` |
+| **Editor 함수** | `ipn_agent.orchestrator.editor` |
 
 ---
 
 ## 13. 본 프로젝트 (mini pjt) Newsletter Orchestrator 팁
 
-- **단일 Graph** — `newsletter_orchestrator.py` = 수집~draft 전체
+- **단일 Graph** — `newsletter_orchestrator.py`(`ipn_agent.orchestrator.workflow`) = 수집~draft 전체, **유일한 진입점**
 - **State에는 metadata·path만** — `NewsletterWorkflowState.articles[]`에 원문 금지
-- **Editor는 함수 + node** — `prepare_newsletter_context` → `generate` → `refine`
-- **rule 노드는 LLM 없이** — threshold, registry, dedupe
+- **Editor는 함수 + node** — `ipn_agent.orchestrator.editor.prepare_newsletter_context` → `generate_newsletter_draft` → `refine_newsletter_draft`
+- **rule 노드는 LLM 없이** — threshold(`ipn_agent.review.hitl`), registry(`ipn_agent.registry.published`), dedupe
 - **subprocess wrapper 유지** — fetch/review 내부 로직 변경 최소화
-- **deprecated** — `pipeline_graph.py`, Editor subgraph(`app`)는 Chat UI용만
+- v0.8에서 `pipeline_graph.py`·Chat UI Editor subgraph를 삭제했다 — 새 기능은 Orchestrator node로만 추가

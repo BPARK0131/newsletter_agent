@@ -3,10 +3,10 @@
 ---
 
 > **작성자:** IP Network 담당  
-> **작성일:** 2026-06-24 (v1.8 갱신: 2026-07-01)  
-> **버전:** v1.8  
-> **상태:** 🟢 MVP v0.7 — 통합 HITL · Tavily 자동 파이프라인 · Newsletter Orchestrator ✅ / Chat UI ⬜  
-> **분류:** AI Agent / LangGraph / Hackathon Day 8  
+> **작성일:** 2026-06-24 (v1.9 갱신: 2026-07-02)  
+> **버전:** v1.9  
+> **상태:** 🟢 MVP v0.8 — 통합 HITL · Tavily 자동 파이프라인 · Newsletter Orchestrator ✅ / Chat UI ❌ 최종 미구현  
+> **분류:** AI Agent / LangGraph / Multi-Agent 뉴스레터 시스템  
 > **관련 문서:** [docs/README.md](./README.md) · [changelog.md](./changelog.md) · [project-structure.md](./project-structure.md)
 
 ---
@@ -26,7 +26,7 @@
 11. [Streamlit 뉴스레터 보드](#11-streamlit-뉴스레터-보드)
 12. [Chat UI 시연](#12-chat-ui-시연)
 13. [실패하면 안 되는 케이스](#13-실패하면-안-되는-케이스)
-14. [Day 1~7 패턴 적용 계획](#14-day-17-패턴-적용-계획)
+14. [LangGraph 설계 패턴 적용 계획](#14-langgraph-설계-패턴-적용-계획)
 15. [기술 스택](#15-기술-스택)
 16. [개발 우선순위](#16-개발-우선순위)
 17. [산출물](#17-산출물)
@@ -67,7 +67,7 @@ IP Network 영역은 Backbone, Backhaul, Data Center Network, IP 보안, NetDevO
 > Agent 간 산출물은 Obsidian Vault(`01_raw` ~ `04_newsletter`)를 **공유 Artifact Store**로 교환한다.  
 > Vault는 레거시 ETL 파이프라인이 아니라, **에이전트 협업·HITL·재현 가능한 중간 결과**를 위한 설계다.
 
-> ℹ️ Day 8 미니 해커톤의 시간 제약을 고려하여, 실제 운영 가능한 뉴스레터 시스템이 아니라 **Agent 구조와 결과 화면이 명확히 보이는 데모 가능한 MVP** 구현에 초점을 둔다.
+> ℹ️ 짧은 개발 기간의 제약을 고려하여, 실제 운영 가능한 뉴스레터 시스템이 아니라 **Agent 구조와 결과 화면이 명확히 보이는 데모 가능한 MVP** 구현에 초점을 둔다.
 
 ---
 
@@ -129,9 +129,9 @@ IP Network 영역은 Backbone, Backhaul, Data Center Network, IP 보안, NetDevO
 
 | 구분                  | MVP 제외 범위     | 사유                                                                                |
 | ------------------- | ------------- | --------------------------------------------------------------------------------- |
-| 대규모 웹 크롤링           | 제외            | 해커톤 시간 및 안정성 이슈                                                                   |
+| 대규모 웹 크롤링           | 제외            | 개발 기간 및 안정성 이슈                                                                   |
 | Tavily / Web Search | **제한 조건부 사용** | RSS 수집 후 카테고리 공백(`Standards/Architecture`, `기간망/DCI`) 시만 보강. `max_queries: 2`로 제한 |
-| MCP 실제 연동           | 제외            | Day 8 범위 초과 가능                                                                    |
+| MCP 실제 연동           | 제외            | MVP 범위 초과                                                                    |
 | Gmail 발송            | 제외            | 외부 서비스 연동에 해당                                                                     |
 | Slack 공유            | 제외            | 외부 서비스 연동에 해당                                                                     |
 | Confluence 자동 작성    | 제외            | 후속 확장 후보                                                                          |
@@ -187,7 +187,7 @@ Streamlit 화면에서는 다음 정보를 확인할 수 있다.
 
 ### 4.2 보조 산출물 — Chat UI
 
-Day 8 해커톤의 기본 실행 흐름에 맞춰 `langgraph dev`와 Chat UI도 함께 구성한다.
+당초 계획에서는 기본 실행 흐름에 맞춰 `langgraph dev`와 Chat UI도 함께 구성하려 했다.
 
 Chat UI에서는 사용자가 다음과 같은 질문을 입력하고 Agent 응답을 확인할 수 있다.
 
@@ -260,7 +260,7 @@ Obsidian Vault는 ETL 파이프라인 단계가 아니라, **Agent 간 공유 Ar
 
 
 > **왜 스크립트 + LangGraph 혼합인가?**  
-> Research·Analysis(1차)는 해커톤 전 **배치 Agent**로 안정적으로 돌리고,  
+> Research·Analysis(1차)는 사전에 **배치 Agent**로 안정적으로 돌리고,  
 > v0.6부터 **Newsletter Orchestrator**가 collect~draft를 단일 Graph로 조율한다.  
 > Editor draft 단계의 `analysis_node`는 **2차 LLM 분석이 아니라** 1차 리뷰 결과를 draft용 스키마로 조립한다.  
 > Vault handoff는 프로덕션 Multi-Agent에서 흔한 **비동기 Agent 협업 패턴**이다.
@@ -336,7 +336,7 @@ flowchart TB
 
     subgraph VaultWrite["Vault 산출물"]
         RAW["01_raw/"]
-        DISC["00_discovery/candidates/"]
+        DISC["01_raw/expansion/"]
         RADAR["ietf_radar.md"]
         REV["02_review/"]
         REJ["99_rejected/"]
@@ -418,7 +418,7 @@ flowchart LR
 
     subgraph Discovery["웹 확장 검색 — optional"]
         D1["Tavily Expansion Search<br/>expansion_search"]
-        D1 --> V0[("00_discovery/candidates/")]
+        D1 --> V0[("01_raw/expansion/")]
     end
 
     subgraph Radar["Standards Radar Agent"]
@@ -448,8 +448,8 @@ flowchart LR
     Q1 --> HITLUI["Streamlit 1차 검토 탭"]
 ```
 
-> **Discovery (v0.7):** `expansion_search` → quality gate → `01_raw/expansion/` + LLM Review → `02_review/` (자동).  
-> `00_discovery/candidates/`는 staging·감사용. HITL은 **기사 검토** 탭 단일 단계.
+> **Discovery (v0.7+):** `expansion_search` → quality gate → `01_raw/expansion/` + LLM Review → `02_review/` (자동, 별도 staging 폴더 없음).  
+> Gate 제외·저점수 로그는 `logs/discovery/*.jsonl`(vault 밖)에 남는다. HITL은 **기사 검토** 탭 단일 단계.
 
 #### 5.3.3 Editor draft 파이프라인 (Orchestrator 내부)
 
@@ -777,8 +777,8 @@ mini pjt/
 ├── output/pipeline_runs/        # Orchestrator run state·events
 ├── logs/tool_runs.jsonl
 ├── vault/
-│   ├── 00_discovery/candidates/
 │   ├── 01_raw/{source_id}/
+│   ├── 01_raw/expansion/{category}/
 │   ├── 02_review/
 │   ├── 03_approved/
 │   ├── 04_newsletter/
@@ -893,7 +893,7 @@ RSS / URL 수집 시도
      동일한 analysis_node / editor_node 흐름 수행
 ```
 
-> **Fallback 이유:** 해커톤 시연 중 네트워크 상태나 외부 사이트 응답에 영향을 받지 않기 위함.  
+> **Fallback 이유:** 시연 중 네트워크 상태나 외부 사이트 응답에 영향을 받지 않기 위함.  
 > 시연 안정성이 데이터 신선도보다 우선이다.
 
 ---
@@ -923,7 +923,7 @@ RSS / URL 수집 시도
 ### 10.1 소스 선정 전략
 
 MVP에서는 `sources.yaml`에 **사전 테스트 완료 소스**를 Tier별로 등록한다.  
-해커톤 당일에는 소스 발굴보다 **Agent 흐름·UI 시연**에 집중한다.
+실제 시연 시에는 소스 발굴보다 **Agent 흐름·UI 시연**에 집중한다.
 
 
 | Tier | 섹션                  | 예시                         | MVP               |
@@ -1066,17 +1066,17 @@ pip install -r requirements.txt
 streamlit run streamlit_app.py
 ```
 
-### 11.2 탭 구성 (v0.7)
+### 11.2 탭 구성 (v0.8)
 
 | 순서 | 탭 | 역할 |
 |------|-----|------|
-| 1 | ▶ 실행 | **Newsletter Orchestrator** · 소스 선택 · Workflow 상태 |
+| 1 | 📥 데이터 수집 | **Newsletter Orchestrator** · 소스 선택 · 진행 상황 |
 | 2 | 📋 기사 검토 | **통합 HITL** — RSS · 등록소스 · Tavily (`02_review/`) |
 | 3 | 📰 뉴스레터 | Orchestrator draft · Preview · **발행 확정** |
 | 4 | 📦 아카이브 | `05_archive` · `06_used` |
 | 5 | ⚙️ 운영콘솔 | Discovery staging · gate 로그 · IETF Radar · Tool 로그 |
 
-> v0.7에서 **웹검색 후보** · **1차 검토** · **IETF Radar** 독립 탭 제거 → 기사 검토·운영콘솔로 통합/이동
+> v0.7에서 **웹검색 후보** · **1차 검토** · **IETF Radar** 독립 탭을 제거해 기사 검토·운영콘솔로 통합했고, v0.8에서 **▶ 실행** 탭 이름을 **📥 데이터 수집**으로 변경했다.
 
 ### 11.3 threshold HITL + 통합 검토 (v0.7)
 
@@ -1136,7 +1136,9 @@ streamlit run streamlit_app.py
 
 ---
 
-## 12. Chat UI 시연
+## 12. Chat UI 시연 (계획 — 최종 미구현)
+
+> **최종 상태 (v0.8):** 아래는 기획 당시의 설계 의도이다. 개발 기간 내 `langgraph.json` + Chat UI는 구현하지 않았고, Editor subgraph(`newsletter_agent_skeleton.py`)도 이후 삭제했다. **Streamlit이 유일한 Presentation Layer**로 최종 확정됐다.
 
 ### 12.1 Chat UI 역할
 
@@ -1162,14 +1164,14 @@ cd class/mini\ pjt
 langgraph dev
 # → http://localhost:2024
 
-# 터미널 2 — Chat UI (Day 8 practice/chat-ui 구조 재사용)
+# 터미널 2 — Chat UI (참고용 chat-ui 구조 재사용)
 pnpm dev
 # → http://localhost:3000
 ```
 
-`langgraph.json` + Chat UI는 **선택 구현**이다. MVP 메인 경로는 Streamlit + `newsletter_orchestrator.py`이다.
+`langgraph.json` + Chat UI는 선택 구현으로 남겨뒀으나 최종적으로 구현하지 않았다. MVP 메인 경로는 Streamlit + `newsletter_orchestrator.py`이다.
 
-> **v0.8:** deprecated Editor subgraph(`newsletter_agent_skeleton.py`) 제거. draft는 Orchestrator editor node가 담당한다.
+> **v0.8:** deprecated Editor subgraph(`newsletter_agent_skeleton.py`)와 `langgraph.json`을 삭제했다. draft는 Orchestrator editor node(`editor_prepare → editor_generate → editor_quality_check`)가 전담한다.
 
 ---
 
@@ -1185,17 +1187,17 @@ pnpm dev
 
 ---
 
-## 14. Day 1~7 패턴 적용 계획
+## 14. LangGraph 설계 패턴 적용 계획
 
 
-| 패턴                           | Day       | 적용 방식                                                                               | 구현 위치                              |
+| 패턴                           | 유형        | 적용 방식                                                                               | 구현 위치                              |
 | ---------------------------- | --------- | ----------------------------------------------------------------------------------- | ---------------------------------- |
-| LCEL / Structured Output     | Day 1, 3  | `RawArticle` → `ArticleAnalysis` → `NewsletterOutput` Pydantic 모델로 구조화              | 각 LangGraph 노드 출력                  |
-| RAG 또는 문서 검색                 | Day 2     | Vault approved Markdown 로드                                                           | `obsidian_loader_node`                 |
-| 도구 다중 호출                     | Day 3     | Research Agent + Tavily Discovery                                         | `fetch_script.py` + Orchestrator      |
-| HITL                         | Day 4     | **Human Agent — Streamlit** (`02_review` → `03_approved`); Orchestrator `hitl_node` 표시 | **`streamlit_app.py`** + editor       |
-| **Multi-Agent (StateGraph)** | **Day 5** | **Newsletter Orchestrator — collect~draft, editor node 3분할**                  | `newsletter_orchestrator.py` |
-| LLM-as-Judge                 | Day 7     | **Analysis Agent (1차)** 벤더 편향 검토 — 필수                                    | `review_script.py` / `ReviewResult.bias_risk`  |
+| LCEL / Structured Output     | 데이터 구조화  | `RawArticle` → `ArticleAnalysis` → `NewsletterOutput` Pydantic 모델로 구조화              | 각 LangGraph 노드 출력                  |
+| RAG 또는 문서 검색                 | 지식 검색     | Vault approved Markdown 로드                                                           | `obsidian_loader_node`                 |
+| 도구 다중 호출                     | 외부 도구 연동  | Research Agent + Tavily Discovery                                         | `fetch_script.py` + Orchestrator      |
+| HITL                         | 사람 개입     | **Human Agent — Streamlit** (`02_review` → `03_approved`); Orchestrator `hitl_node` 표시 | **`streamlit_app.py`** + editor       |
+| **Multi-Agent (StateGraph)** | **핵심 아키텍처** | **Newsletter Orchestrator — collect~draft, editor node 3분할**                  | `newsletter_orchestrator.py` |
+| LLM-as-Judge                 | 품질 검증     | **Analysis Agent (1차)** 벤더 편향 검토 — 필수                                    | `review_script.py` / `ReviewResult.bias_risk`  |
 
 
 ---
@@ -1222,7 +1224,7 @@ pnpm dev
 
 ## 16. 개발 우선순위
 
-### 16.0 해커톤 전 사전 준비 — ✅ 대부분 완료
+### 16.0 개발 전 사전 준비 — ✅ 대부분 완료
 
 
 | 순서   | 기능                        | 상태                                 |
@@ -1399,4 +1401,4 @@ Multi-Agent 구성 (v0.7)
   Artifact Store: Obsidian Vault · Run log: output/pipeline_runs/
 ```
 
-*본 문서는 Day 8 해커톤 과제 설명 자료. v1.8 — MVP v0.7 (2026-07-01). 위치: `docs/assignment-spec.md`*
+*본 문서는 과제 설명 자료. v1.9 — MVP v0.8 (2026-07-02). 위치: `docs/assignment-spec.md`*

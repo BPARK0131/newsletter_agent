@@ -8,18 +8,18 @@
 
 1. **Research** — RSS/API/blog_index 소스 자동 수집
 2. **Analysis** — LLM 1차 리뷰 (요약·분류·편향·중요도)
-3. **Threshold HITL** — score 기반 큐 분류 (`hitl_routing.py`)
+3. **Threshold HITL** — score 기반 큐 분류 (`ipn_agent.review.hitl`)
 4. **HITL** — Streamlit **기사 검토** 탭 사람 최종 승인 (RSS · Tavily 통합)
 5. **Editor** — Orchestrator editor node → draft Markdown
 6. **Standards Context** — IETF Radar + 기사별 표준 맥락
 
 ## MVP 범위
 
-- **`newsletter_orchestrator.py`** — 수집~draft **단일 StateGraph** (v0.7)
-- **`discovery_pipeline.py`** — Tavily quality gate → 02_review 자동 생성
-- **`review_metadata.py`** — 02_review frontmatter 정규화
-- **`newsletter_editor.py`** — Editor prepare/generate/refine 함수
-- Chat UI / 이메일 / HTML 변환은 후순위
+- **`newsletter_orchestrator.py`** — 수집~draft **단일 StateGraph** (v0.8, 유일한 진입점)
+- **`ipn_agent.collect.discovery`** — Tavily quality gate → 02_review 자동 생성
+- **`ipn_agent.review.metadata`** — 02_review frontmatter 정규화
+- **`ipn_agent.orchestrator.editor`** — Editor prepare/generate/refine 함수
+- Chat UI / 이메일 / HTML 변환은 최종 범위 제외 (미구현으로 종료)
 
 ## 산출물
 

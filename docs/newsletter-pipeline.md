@@ -1,6 +1,6 @@
 # 뉴스레터 파이프라인
 
-## 단일 진입점 (v0.7)
+## 단일 진입점 (v0.8)
 
 **`newsletter_orchestrator.py`** — 수집부터 draft까지 하나의 LangGraph Workflow.  
 HITL은 Streamlit **기사 검토** 탭에서 단일 단계로 처리합니다.
@@ -17,7 +17,7 @@ python newsletter_orchestrator.py --mode full
 - frontmatter category, summary, headline, keywords, bias 재사용
 - **기발행 registry에 없는 기사만** draft 대상
 
-## Editor 단계 (`newsletter_editor.py`)
+## Editor 단계 (`ipn_agent.orchestrator.editor`)
 
 Orchestrator의 editor node 3개가 아래 함수를 호출한다.
 
@@ -52,10 +52,9 @@ filter_published_articles
 
 | 경로 | 상태 |
 |------|------|
-| `run_newsletter()` | → `run_editor_for_paths(load_all_approved=True)` |
-| `run_newsletter_from_pipeline()` | → `run_editor_for_paths()` |
-| `newsletter_agent_skeleton.app` | Chat UI용 Editor subgraph |
-| `pipeline_graph.py` | orchestrator wrapper |
+| `ipn_agent.orchestrator.editor.run_editor_for_paths()` | CLI/스크립트에서 approved 경로 지정 실행용 헬퍼 (Orchestrator 우회 경로) |
+
+> v0.8에서 `pipeline_graph.py`, `newsletter_agent_skeleton.py`(Chat UI Editor subgraph)를 삭제했습니다. `newsletter_orchestrator.py`가 유일한 draft 생성 경로입니다.
 
 ## 발행 워크플로 (Graph 밖)
 
@@ -74,12 +73,12 @@ filter_published_articles
 
 | 레이어 | 모듈 | 시점 |
 |--------|------|------|
-| URL | `article_registry.py` | fetch / review |
-| Hash | `published_registry.py` | HITL · draft 직전 |
+| URL | `ipn_agent.registry.article` | fetch / review |
+| Hash | `ipn_agent.registry.published` | HITL · draft 직전 |
 
-## Streamlit (v0.7)
+## Streamlit (v0.8)
 
-- **실행**: Newsletter Orchestrator · Workflow 상태 · Tool 로그
-- **기사 검토**: RSS · Tavily **통합** threshold HITL · 출처 필터 · review_score 중심
-- **운영콘솔**: Discovery staging · quality gate 로그 · IETF Radar
-- **뉴스레터 생성**: Orchestrator `mode=draft` 또는 Draft 탭 버튼
+- **📥 데이터 수집**: Newsletter Orchestrator · Workflow 상태 · Tool 로그
+- **📋 기사 검토**: RSS · Tavily **통합** threshold HITL · 출처 필터 · review_score 중심
+- **⚙️ 운영콘솔**: Discovery staging · quality gate 로그 · IETF Radar
+- **📰 뉴스레터**: Orchestrator `mode=draft` 또는 Draft 생성 버튼

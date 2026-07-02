@@ -36,7 +36,7 @@ OBSIDIAN_VAULT_PATH=C:/path/to/mini pjt/vault
 # LANGSMITH_PROJECT=ip-newsletter-agent
 ```
 
-## Newsletter Orchestrator (v0.7 — 권장)
+## Newsletter Orchestrator (유일한 진입점)
 
 ```bash
 # 수집 ~ threshold HITL 큐
@@ -50,11 +50,7 @@ python newsletter_orchestrator.py --mode full
 python newsletter_orchestrator.py --sources apnic_blog --mode collect
 ```
 
-Deprecated (동일 동작):
-
-```bash
-python pipeline_graph.py --mode collect
-```
+> v0.8에서 deprecated wrapper `pipeline_graph.py`를 삭제했습니다. `newsletter_orchestrator.py`만 사용하세요.
 
 ## 개별 스크립트
 
@@ -65,7 +61,7 @@ python standards_radar_script.py
 python research_review_agent.py --sources apnic_blog   # 레거시 subprocess
 ```
 
-## Streamlit (v0.7)
+## Streamlit (v0.8)
 
 ```bash
 streamlit run streamlit_app.py
@@ -73,11 +69,11 @@ streamlit run streamlit_app.py
 
 권장 흐름:
 
-1. **실행** → Orchestrator **수집 + HITL 큐** (RSS + Tavily → `02_review/`)
-2. **기사 검토** → 출처·큐 필터 후 승인/반려 (단일 HITL)
-3. **뉴스레터** → **Draft 생성** 또는 Orchestrator draft mode
-4. **발행 확정**
-5. **운영콘솔** — staging · gate 제외 사유 · IETF Radar · Tool 로그 (선택)
+1. **📥 데이터 수집** → Orchestrator **수집 + HITL 큐** (RSS + Tavily → `02_review/`)
+2. **📋 기사 검토** → 출처·큐 필터 후 승인/반려 (단일 HITL)
+3. **📰 뉴스레터** → **Draft 생성** 또는 Orchestrator draft mode → **발행 확정**
+4. **📦 아카이브** — 발행 호별 보관 확인 (선택)
+5. **⚙️ 운영콘솔** — staging · gate 제외 사유 · IETF Radar · Tool 로그 (선택)
 
 ## Workflow run 로그
 

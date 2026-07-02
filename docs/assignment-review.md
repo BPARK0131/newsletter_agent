@@ -1,9 +1,11 @@
 # Multi-Agent 기반 IP Network 기술 동향 뉴스레터 Agent — 과제 검토 보고서
 
-> **작성 목적:** Day 8 해커톤 제출 전 과제 명세서의 기술 적합성·완결성·리스크를 검토한다.  
-> **검토 기준:** LangGraph 8일 코스 패턴, 해커톤 시간 제약, 시연 가능성  
+> **작성 목적:** 과제 명세서의 기술 적합성·완결성·리스크를 검토한다.  
+> **검토 기준:** LangGraph 설계 패턴 적용도, 개발 기간 제약, 시연 가능성  
 > **갱신:** v0.7 통합 HITL · Tavily 자동 파이프라인 (2026-07-01)  
 > **관련:** [assignment-spec.md](./assignment-spec.md) · [changelog.md](./changelog.md)
+>
+> ⚠️ **특정 시점(v0.7) 스냅샷 보고서입니다.** `pipeline_graph.py` · `newsletter_editor.py` · `newsletter_agent_skeleton.py`는 v0.8(2026-07-02)에서 삭제되었습니다. 현재 구조는 [project-structure.md](./project-structure.md) · [changelog.md](./changelog.md)를 참고하세요.
 
 ---
 
@@ -15,8 +17,8 @@
 |-----------|------|------|
 | 현실 업무 문제 연결 | ✅ 적합 | 정보 수집·분류·편향 검토 Pain Point 명확 |
 | MVP 범위 설정 | ✅ 적합 | 운영 시스템이 아닌 Agent·HITL·뉴스레터 시연에 초점 |
-| 해커톤 시간 내 완성 가능성 | ✅ 달성 | collect → HITL → Orchestrator draft 파이프라인 동작 |
-| Day 1~7 패턴 적용 | ✅ 적용 | StateGraph, Structured Output, HITL, LLM-as-Judge, Tool 로깅 |
+| 목표 기간 내 완성 가능성 | ✅ 달성 | collect → HITL → Orchestrator draft 파이프라인 동작 |
+| LangGraph 설계 패턴 적용 | ✅ 적용 | StateGraph, Structured Output, HITL, LLM-as-Judge, Tool 로깅 |
 
 ---
 
@@ -243,7 +245,7 @@ class/mini pjt/
 
 | 항목 | 판정 |
 |------|------|
-| 과제 적합성 | ✅ Day 8 LangGraph 해커톤 목표와 일치 |
+| 과제 적합성 | ✅ LangGraph 기반 Multi-Agent 설계 목표와 일치 |
 | 기술 완결성 | ✅ collect~draft~발행 E2E 동작 |
 | 시연 가능성 | ✅ Orchestrator 단계·count·HITL·registry 설명 가능 |
 | 문서 정합성 | ✅ v0.6 docs 동기화 |
@@ -260,4 +262,4 @@ class/mini pjt/
 
 ---
 
-*본 검토 보고서는 Day 8 해커톤 기술 적합성 확인용. v0.7 (2026-07-01). 위치: `docs/assignment-review.md`*
+*본 검토 보고서는 기술 적합성 확인용. v0.7 (2026-07-01). 위치: `docs/assignment-review.md`*

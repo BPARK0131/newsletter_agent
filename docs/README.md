@@ -15,16 +15,17 @@ streamlit run streamlit_app.py
 
 | 문서 | 내용 |
 |------|------|
+| [ip-newsletter-agent-confluence.md](./ip-newsletter-agent-confluence.md) | **일반 사용자 공유용** — Confluence 붙여넣기용 소개·사용 가이드 |
 | [project-overview.md](./project-overview.md) | 프로젝트 목표·범위·MVP 정의 |
 | [assignment-spec.md](./assignment-spec.md) | **과제 설명서** |
 | [assignment-review.md](./assignment-review.md) | **과제 검토 보고서** |
 | [architecture.md](./architecture.md) | **Newsletter Orchestrator** · Tavily 자동 파이프라인 |
 | [vault-structure.md](./vault-structure.md) | Obsidian Vault·registry·통합 Review 메타 |
-| [streamlit-ui.md](./streamlit-ui.md) | Streamlit v0.7 · 통합 HITL · 운영콘솔 |
+| [streamlit-ui.md](./streamlit-ui.md) | Streamlit v0.8 · 통합 HITL · 운영콘솔 |
 | [newsletter-pipeline.md](./newsletter-pipeline.md) | editor prepare/generate/refine · 발행 |
 | [setup-and-operations.md](./setup-and-operations.md) | `newsletter_orchestrator.py` 실행 |
 | [project-structure.md](./project-structure.md) | **ipn_agent/** Python 패키지 구조 |
-| [changelog.md](./changelog.md) | 반영 이력 (v0.1 → v0.7) |
+| [changelog.md](./changelog.md) | 반영 이력 (v0.1 → v0.8) |
 | [sources-checklist.md](./sources-checklist.md) | `sources.yaml` 소스 검증 |
 | [agent-coding-guide.md](./agent-coding-guide.md) | LangGraph 코딩 가이드 |
 | [legacy-design-notes.md](./legacy-design-notes.md) | 초기 기획안 → docs 통합 |

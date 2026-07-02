@@ -4,6 +4,34 @@
 
 ---
 
+## v0.8 — 레거시 경로 정리 + 문서 동기화 (2026-07-02)
+
+### 코드 정리 (deprecated 파일 삭제)
+
+v0.6~v0.7에서 "deprecated wrapper로 유지"하던 경로를 실제로 **삭제**했다. `newsletter_orchestrator.py`(Newsletter Orchestrator)가 유일한 진입점이다.
+
+| 삭제된 파일 | 이전 역할 | 대체 |
+|-------------|-----------|------|
+| `pipeline_graph.py` | v0.5 StateGraph, v0.6부터 orchestrator wrapper | `newsletter_orchestrator.py` |
+| `newsletter_agent_skeleton.py` | Chat UI용 Editor subgraph | Orchestrator `editor_prepare→generate→quality_check` |
+| `newsletter_editor.py` (루트) | Editor prepare/generate/refine | `ipn_agent/orchestrator/editor.py` |
+| `newsletter_workflow_state.py` (루트) | `NewsletterWorkflowState` | `ipn_agent/orchestrator/state.py` |
+| `langgraph.json` + Chat UI 연동 | LangGraph dev 서버 · 보조 시연 채널 | 미구현 상태로 최종 종료 (Streamlit 단일 경로) |
+| `ipn_agent/core/text_normalize.py` | 텍스트 정규화 유틸 | 미사용 확인 후 제거 |
+
+> `ipn_agent/orchestrator/newsletter.py`에 `obsidian_loader_node` · `analysis_node` · `standards_linker_node` · `hitl_node` · `editor_node`가 남아 있고, `ipn_agent/orchestrator/editor.py`가 이를 순차 호출한다. Editor 로직 자체는 삭제되지 않았다.
+
+### 문서 동기화
+
+- `docs/` 전체에서 삭제된 파일(`pipeline_graph.py`, `newsletter_agent_skeleton.py` 등)에 대한 잔여 참조 제거
+- Streamlit 탭 표기 통일: `▶ 실행` → **`📥 데이터 수집`** (실제 코드 탭 라벨 기준)
+- `docs/project-structure.md` — `ipn_agent/orchestrator/` 트리에 `newsletter.py` 반영, 존재하지 않는 `legacy/skeleton.py` 제거
+- Chat UI: 최종 미구현으로 종료 — Streamlit이 유일한 Presentation Layer
+- `docs/ip-newsletter-agent-confluence.md` 신규 작성 — 일반 사용자 공유용 Confluence 문서, "Multi-Agent 구조 쉽게 이해하기" 섹션 포함
+- `docs/` 내 모든 문서에서 "해커톤/Day N" 등 과정성 표현을 제거하고 일반적인 프로젝트 설명으로 정리
+
+---
+
 ## v0.7 — HITL 승인 흐름 통일 + Tavily 자동 파이프라인
 
 ### HITL UX
@@ -246,5 +274,5 @@
 - [ ] PDF/HTML export, 구독자 발송
 - [ ] RAG — `published/`만 인덱싱
 - [ ] SQLite 메타 인덱스 (vault md + registry 동기화)
-- [ ] Editor Orchestrator + Chat UI
 - [ ] `llm_usage.jsonl` token 집계 UI
+- [x] ~~Editor Orchestrator + Chat UI~~ — v0.8에서 미구현으로 최종 종료 (Streamlit 단일 경로로 확정)
