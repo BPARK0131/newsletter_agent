@@ -1,1 +1,79 @@
-[]
+[
+  {
+    "article_id": "2026-06-08__expansion__datacenter_network__gpu-cluster-networking-infiniband-vs-roce-for-large-scale-ai",
+    "title": "GPU Cluster Networking: InfiniBand vs. RoCE for Large-Scale AI Training",
+    "url": "https://inflect.com/blog/gpu-cluster-networking-infiniband-vs.-roce-for-large-scale-ai-training",
+    "source": "expansion/datacenter_network",
+    "published_newsletter": "2026-07-02-newsletter.md",
+    "published_at": "2026-07-02 11:20",
+    "normalized_url_hash": "a709091a513032fd0c6a6d55edae45f304cfedf7f5a31fac661c2eea07595e4e",
+    "title_hash": "f39bac181211fdfb9459df0950dc5df2988d64220f72df39dbd52e19c3efb341",
+    "content_hash": "ae57257de16309bfd37cb0888b84ce97609e01092e6576b3811ed7d379445a8c"
+  },
+  {
+    "article_id": "2026-06-09__expansion__datacenter_network__what-is-rdma-over-converged-ethernet-roce-ubuntu",
+    "title": "What is RDMA over Converged Ethernet (RoCE)? - Ubuntu",
+    "url": "https://ubuntu.com/blog/what-is-rdma-over-converged-ethernet-roce",
+    "source": "expansion/datacenter_network",
+    "published_newsletter": "2026-07-02-newsletter.md",
+    "published_at": "2026-07-02 11:20",
+    "normalized_url_hash": "6d68ca1d4032e3777c879d020447aba21710c69c6e79940a745c996796575c05",
+    "title_hash": "f5d389ea3ea969bf8d9f71c8fe561491b53b076bb823d5dbff3f2b1fbe644410",
+    "content_hash": "2bacaf483b0fc1c2368170f573783005520d35535e7fad3552b64172e0c65c0e"
+  },
+  {
+    "article_id": "2026-06-29__ripe_labs__aspa-is-live-can-you-see-it-working",
+    "title": "ASPA Is Live. Can You See It Working?",
+    "url": "https://labs.ripe.net/author/ritesh-mukherjee/aspa-is-live-can-you-see-it-working/",
+    "source": "ripe_labs",
+    "published_newsletter": "2026-07-02-newsletter.md",
+    "published_at": "2026-07-02 11:20",
+    "normalized_url_hash": "0b78473302072adecb94fd44ff48836569b11d57697aa4bbe3411eb9f0827cd8",
+    "title_hash": "d6158c5c91f5f1d22257efc8f264980b95accd145583f71c133d640793039dbe",
+    "content_hash": "725ac2aa5bc9c07e46680940fff6860924fe928d7fa7b433000b65e9c757fd35"
+  },
+  {
+    "article_id": "2026-06-30__ripe_labs__ripe-ncc-days-baltics-insights-into-regional-resilience",
+    "title": "RIPE NCC Days Baltics: Insights into Regional Resilience",
+    "url": "https://labs.ripe.net/author/kjerstin-burdiek/ripe-ncc-days-baltics-insights-into-regional-resilience/",
+    "source": "ripe_labs",
+    "published_newsletter": "2026-07-02-newsletter.md",
+    "published_at": "2026-07-02 11:20",
+    "normalized_url_hash": "ccbc2ef5273fc4256c5e9c2f3980bcb229b697dccca66befb9b627737bc9a9e5",
+    "title_hash": "e533c5389c77f05152dc69597bdb6d58f71d0e2d27426a97b55b14c7df2946b7",
+    "content_hash": "f18dca6cf3088dd08789b3cb0de42cc2765f697c0348611bd2e950dfa5367cb0"
+  },
+  {
+    "article_id": "2026-07-01__cisco_networking_blog__embedded-network-security-the-ultimate-defense-against-ai-dr",
+    "title": "Embedded network security: The ultimate defense against AI-driven threats",
+    "url": "https://blogs.cisco.com/networking/embedded-network-security-the-ultimate-defense-against-ai-driven-threats/",
+    "source": "cisco_networking_blog",
+    "published_newsletter": "2026-07-02-newsletter.md",
+    "published_at": "2026-07-02 11:20",
+    "normalized_url_hash": "44c8866e69edbf6900cb304723c2c7ca749fdc23f3cdaf6f3b0175447564f992",
+    "title_hash": "9dd050040807d83b065ca8e82589e7569247a2924829edbd5ff5e38613e0b6df",
+    "content_hash": "dd92f1f3c964e181ff5cbf9408c3b7cf7405c00165ed0730b87cee525381c44b"
+  },
+  {
+    "article_id": "2026-07-01__lightreading__echostar-tagged-as-stalking-horse-amid-possible-auction-of-d",
+    "title": "EchoStar tagged as stalking horse amid possible auction of Dish Wireless assets",
+    "url": "https://www.lightreading.com/5g/echostar-tagged-as-stalking-horse-for-dish-wireless-assets",
+    "source": "lightreading",
+    "published_newsletter": "2026-07-02-newsletter.md",
+    "published_at": "2026-07-02 11:20",
+    "normalized_url_hash": "a38062780b0452a3e3d16d248614b92aee443de98d4f6ae8daa75ddabcbd6f1b",
+    "title_hash": "554178c9d3e234a4cb0bb1a1b451e74af88a126dd03896216557b1bb43b918bb",
+    "content_hash": "89eadd43e9214923a07df1bae478e079602d41e78c3f261aed8176c77f6d36e4"
+  },
+  {
+    "article_id": "2026-07-02__expansion__datacenter_network__disaggregated-inference-network-lossless-roce-ethernet",
+    "title": "Disaggregated Inference Network | Lossless RoCE Ethernet",
+    "url": "https://hedgehog.cloud/disaggregated-inference",
+    "source": "expansion/datacenter_network",
+    "published_newsletter": "2026-07-02-newsletter.md",
+    "published_at": "2026-07-02 11:20",
+    "normalized_url_hash": "46aef3b96db1e0b69510cf3dda06d8e7476c824c8b5cc2f1680b48315e9b224e",
+    "title_hash": "0dec21963fbde9d4924483c2b7803bed1e5071e57005cd3003ce29de9bb01394",
+    "content_hash": "ebdbfd5fa789ee1a2fcad7e010868e003bfc62c4448dd81e8b76958af21d5256"
+  }
+]

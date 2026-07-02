@@ -29,6 +29,30 @@ Tavily Result → discovery_score → apply_tavily_quality_gate()
 
 Gate 제외·저점수 로그: `logs/discovery/*.jsonl` (vault 밖)
 
+### IETF Radar (Standards Radar Agent)
+
+뉴스 수집·리뷰 파이프라인과 **분리된 reference 전용** 흐름이다. 상세 역할: [assignment-spec.md §10.3](./assignment-spec.md#103-ietf-radar-standards-radar-agent--역할-정의)
+
+```
+ietf_datatracker API (WG 5개)
+        │
+        ▼
+fetch_script.collect_api()  →  01_raw/ietf_datatracker/*.md
+        │                        (review_script SKIP — standards_signal)
+        ▼
+standards_radar_script.py   →  04_newsletter/ietf_radar.md
+        │
+        ├─ 운영콘솔: Radar 전체 Preview
+        └─ draft: standards_linker_node → 기사별 standards_context만
+```
+
+| 항목 | 내용 |
+|------|------|
+| Agent | Standards Radar Agent (`ipn_agent.standards.radar`) |
+| Collect | Orchestrator `collect` 시 `ietf_datatracker` 자동 포함 |
+| HITL | ❌ — 기사 검토 큐 대상 아님 |
+| LLM | ❌ — `wg_radar` + 키워드 룰 Linker |
+
 | 게이트 조건 | 동작 |
 |-------------|------|
 | discovery_score < min | 제외 |

@@ -136,7 +136,6 @@ def build_review_meta(
     md_file: Path,
     *,
     recollect_required: bool = False,
-    review_quality_issue: bool = False,
     is_published: bool = False,
 ) -> dict:
     """02_review frontmatter 통합 필드."""
@@ -197,7 +196,6 @@ def build_review_meta(
         "hitl_route": hitl_route,
         "topic_tags": result.topic_tags,
         "recollect_required": recollect_required,
-        "review_quality_issue": review_quality_issue,
         "review_required": recollect_required or result.bias_risk in ("medium", "high"),
         "is_published": is_published,
     }

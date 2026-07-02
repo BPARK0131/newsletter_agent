@@ -31,6 +31,56 @@ CATEGORIES = [
 
 BIAS_RISKS = ["low", "medium", "high"]
 
+EXPANSION_SOURCE_PREFIX = "expansion:"
+
+
+def expansion_virtual_source_id(category_id: str) -> str:
+    return f"{EXPANSION_SOURCE_PREFIX}{category_id}"
+
+
+def parse_expansion_category_id(source_id: str) -> str | None:
+    if source_id.startswith(EXPANSION_SOURCE_PREFIX):
+        return source_id[len(EXPANSION_SOURCE_PREFIX):]
+    return None
+
+
+def split_picker_selection(selected_ids: list[str]) -> tuple[list[str], list[str]]:
+    """소스 피커 선택 → (RSS/API source_id, expansion category_id)."""
+    rss_ids: list[str] = []
+    expansion_ids: list[str] = []
+    for sid in selected_ids:
+        cat_id = parse_expansion_category_id(sid)
+        if cat_id:
+            expansion_ids.append(cat_id)
+        else:
+            rss_ids.append(sid)
+    return rss_ids, expansion_ids
+
+
+def build_expansion_picker_sources(
+    expansion: dict[str, Any],
+    *,
+    tavily_available: bool = True,
+) -> list[dict[str, Any]]:
+    """Tavily expansion_search 카테고리를 RSS와 동일한 소스 피커 항목으로 변환."""
+    if not expansion.get("enabled"):
+        return []
+    items: list[dict[str, Any]] = []
+    for cat in expansion.get("categories") or []:
+        cat_id = cat.get("id", "")
+        if not cat_id:
+            continue
+        items.append({
+            "id": expansion_virtual_source_id(cat_id),
+            "name": cat.get("name", cat_id),
+            "enabled": tavily_available,
+            "tier": "Discovery",
+            "collect_method": "tavily_search",
+            "is_expansion": True,
+            "expansion_category_id": cat_id,
+        })
+    return items
+
 
 def get_vault_path() -> Path:
     env = os.environ.get("OBSIDIAN_VAULT_PATH", "").strip()
@@ -235,6 +285,7 @@ def list_approved_items(vault: Path | None = None) -> list[dict[str, Any]]:
     for md in sorted(approved_dir.glob("*.md")):
         try:
             meta, body = read_md(md)
+            sections = parse_review_body(body)
             items.append({
                 "filename": md.name,
                 "path": md,
@@ -247,6 +298,9 @@ def list_approved_items(vault: Path | None = None) -> list[dict[str, Any]]:
                 "source_name": meta.get("source_name", ""),
                 "source_url": meta.get("source_url", meta.get("url", "")),
                 "topic_tags": meta.get("topic_tags") or [],
+                "summary": sections.get("요약", ""),
+                "key_points": sections.get("핵심 포인트", ""),
+                "newsletter_candidate": sections.get("뉴스레터 후보 문장", "") or sections.get("뉴스레터 헤드라인", ""),
             })
         except Exception:
             continue

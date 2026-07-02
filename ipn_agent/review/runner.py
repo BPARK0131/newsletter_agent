@@ -33,7 +33,7 @@ Phase 2 — 리뷰 마크다운 생성 스크립트
   1. fetch_script.py → 01_raw/
   2. review_script.py → 02_review/
   3. Streamlit Admin (Human Agent HITL) → 03_approved/ 승인
-  4. newsletter_agent_skeleton.py → 04_newsletter/
+  4. newsletter_orchestrator.py → 04_newsletter/
 """
 
 import argparse
@@ -56,8 +56,7 @@ if hasattr(sys.stdout, "reconfigure"):
         pass
 
 from ipn_agent.core.tool_logger import log_tool_event
-from ipn_agent.core.mvp_limits import mvp_limits_summary, mvp_max_review, shuffle_review_files
-from ipn_agent.core.text_normalize import has_mixed_script_artifact, normalize_network_terms
+from ipn_agent.core.mvp_limits import mvp_limits_summary
 from ipn_agent.registry.article import url_blocks_review
 from ipn_agent.collect.extract import recollect_article_content, score_content, is_thin_content
 
@@ -111,19 +110,21 @@ REVIEW_PROMPT = """당신은 IP Network 기술 뉴스레터 편집자입니다.
 - category: 가장 관련성 높은 카테고리 1개 선택
 - bias_risk: 벤더 홍보·과장 표현이 있으면 medium/high, 기술 사실 위주면 low
 - summary: 핵심 내용을 한국어 3~5줄로 요약 (본문이 빈약·홍보성이면 그 사실을 명시하지 말고, 기술적으로 확인 가능한 내용만 서술)
-  · hijack → 하이재킹, route leak → 라우트 유출 등 네트워크 용어는 일관된 한국어로 표기
-  · 한글·영문이 붙은 조어(예: 히ijack)를 만들지 말 것
 - key_points: 독자가 알아야 할 핵심 포인트 3~5개 (한국어 bullet)
 - newsletter_candidate: 뉴스레터 카드용 짧은 제목형 헤드라인
   · 25~45자, 한국어, 마침표 없이 작성
   · 원문·topic_tags에 **직접 등장한** 핵심 기술 키워드만 사용
-  · BGP, RPKI, EVPN, SRv6 등 표준 약어는 영문 그대로 유지
-  · hijack/hijacking → **하이재킹**, route leak → **라우트 유출** (일관 표기)
-  · 히ijack, 히재킹, hijack 등 한·영 혼용 조어 **금지**
   · "BGP 시대", "BGP급", "BGP 관점" 같은 비유·은유 표현 **금지**
   · 원문에 없는 키워드를 억지로 넣지 말 것
 - importance_score: 뉴스레터 포함 중요도 1~5 (5=매우 중요)
 - topic_tags: 관련 세부 기술 태그 (예: bgp, evpn, ai_fabric, route_leak, netdevops)
+
+한국어·용어 번역 (LLM이 직접 처리 — 후처리 없음):
+- summary, key_points, newsletter_candidate, bias_note는 **자연스러운 한국어**로 작성
+- 일반 영어 기술 용어는 한국어로 번역: hijacking→하이재킹, route leak→라우트 유출, prefix hijack→프리픽스 하이재킹
+- BGP, RPKI, EVPN, SRv6, RoCE, OAuth, Kubernetes 등 **표준 약어·프로토콜명·제품명·고유명사**는 영문 그대로 유지하고 한국어 조사를 붙여도 됨 (예: Cisco는, BGP 기반, RoCEv2 패브릭)
+- 한글 어간에 영문을 이어 붙인 조어는 금지 (예: 히ijack, 히jack, 히재킹+hijack 혼용)
+- 영문 용어를 번역할 때는 완전한 한국어 표현을 사용하고, 번역 도중 한·영이 한 단어 안에 섞이지 않게 할 것
 """
 
 LOW_QUALITY_PHRASES: tuple[str, ...] = (
@@ -271,8 +272,8 @@ def compact_content(body: str, limit: int = 4000) -> str:
 
 
 def normalize_newsletter_headline(text: str) -> str:
-    """newsletter_candidate를 25~45자 제목형 헤드라인으로 정규화."""
-    headline = normalize_network_terms(text.strip().replace("\n", " "))
+    """newsletter_candidate를 25~45자 제목형 헤드라인으로 보정."""
+    headline = text.strip().replace("\n", " ")
     headline = headline.replace("\\n", " ").replace("\\t", " ")
     headline = re.sub(r"[.。!?！？…]+$", "", headline).strip()
     for pat in FORBIDDEN_HEADLINE_PATTERNS:
@@ -283,13 +284,10 @@ def normalize_newsletter_headline(text: str) -> str:
     return headline
 
 
-def sanitize_review_result(result: ReviewResult) -> ReviewResult:
-    """LLM 리뷰 출력 — 용어 정규화·헤드라인 길이 보정."""
+def finalize_review_result(result: ReviewResult) -> ReviewResult:
+    """LLM 리뷰 출력 — 헤드라인 길이·형식만 보정 (용어 번역은 LLM에 위임)."""
     return result.model_copy(update={
-        "summary": normalize_network_terms(result.summary),
         "newsletter_candidate": normalize_newsletter_headline(result.newsletter_candidate),
-        "key_points": [normalize_network_terms(p) for p in result.key_points],
-        "bias_note": normalize_network_terms(result.bias_note or ""),
     })
 
 
@@ -318,11 +316,6 @@ def detect_recollect_required(result: ReviewResult, body: str = "") -> bool:
         return True
 
     return False
-
-
-def detect_review_quality_issue(result: ReviewResult) -> bool:
-    """LLM 리뷰 결과 표현 품질 문제 (본문 재수집과 분리)."""
-    return has_mixed_script_artifact(_review_combined_text(result))
 
 
 def _build_frontmatter(meta: dict, body: str) -> str:
@@ -390,7 +383,7 @@ def try_recollect_raw_body(
 
 
 def _run_llm_review(title: str, meta: dict, body: str) -> ReviewResult:
-    return sanitize_review_result(get_reviewer().invoke(
+    return finalize_review_result(get_reviewer().invoke(
         REVIEW_PROMPT.format(
             title=title,
             source_name=meta.get("source_name", ""),
@@ -407,7 +400,6 @@ def build_review_markdown(meta: dict, result: ReviewResult, md_file: Path, body:
 
     source_url = get_source_url(meta)
     recollect = detect_recollect_required(result, body)
-    review_quality_issue = detect_review_quality_issue(result)
     title = meta.get("title", md_file.stem)
     source = meta.get("source_name") or meta.get("source_id") or ""
     ch = content_hash_for_article(body=body, meta=meta)
@@ -422,7 +414,6 @@ def build_review_markdown(meta: dict, result: ReviewResult, md_file: Path, body:
     review_meta = build_review_meta(
         meta, result, md_file,
         recollect_required=recollect,
-        review_quality_issue=review_quality_issue,
         is_published=is_pub,
     )
     frontmatter = yaml.dump(
@@ -617,12 +608,10 @@ def process_file(md_file: Path, vault_path: str, dry_run: bool, force: bool = Fa
 
     bias_label = f" ⚠️ bias:{result.bias_risk}" if result.bias_risk != "low" else ""
     recollect = detect_recollect_required(result, body)
-    review_quality_issue = detect_review_quality_issue(result)
     recollect_label = " ⚠️ 본문재수집" if recollect else ""
-    quality_label = " ⚠️ 리뷰품질확인" if review_quality_issue else ""
     _safe_print(
         f"    [SAVED] 02_review/{out_filename} [{result.category}]"
-        f"{bias_label}{recollect_label}{quality_label}"
+        f"{bias_label}{recollect_label}"
     )
     log_tool_event(
         "analysis", "review_writer", "success",
@@ -652,16 +641,6 @@ def run(target_file: str | None = None, dry_run: bool = False, force: bool = Fal
         files = sorted(raw_root.rglob("*.md"))
         files = [f for f in files if f.name != ".gitkeep"]
 
-    review_cap = mvp_max_review()
-    if review_cap is not None and not target_file:
-        candidates = [f for f in files if _is_review_candidate(f, vault_path, force)]
-        skipped_upfront = len(files) - len(candidates)
-        files = shuffle_review_files(candidates)
-        _safe_print(
-            f"[MVP] 리뷰 후보 {len(candidates)}건 무작위 순서 "
-            f"(스킵 {skipped_upfront}건 제외, 신규 생성 상한 {review_cap})"
-        )
-
     print(f"[INFO] 처리 대상: {len(files)}개 파일 | vault: {vault_path}")
     if mvp := mvp_limits_summary():
         print(f"[MVP] {mvp}")
@@ -669,18 +648,11 @@ def run(target_file: str | None = None, dry_run: bool = False, force: bool = Fal
     processed = 0
     skipped = 0
     errors = 0
-    newly_created = 0
     for f in files:
-        if review_cap is not None and not dry_run and newly_created >= review_cap:
-            remaining = len(files) - files.index(f)
-            _safe_print(f"\n[MVP] MVP_MAX_REVIEW={review_cap} 도달 — 나머지 {remaining}건 스킵")
-            break
         try:
             _safe_print(f"\n[FILE] {f.relative_to(vault_path)}")
             if process_file(f, vault_path, dry_run, force):
                 processed += 1
-                if not dry_run:
-                    newly_created += 1
             else:
                 skipped += 1
         except Exception as e:
@@ -688,8 +660,6 @@ def run(target_file: str | None = None, dry_run: bool = False, force: bool = Fal
             _safe_print(f"  [ERROR] 처리 실패 ({f.name}): {e}")
 
     _safe_print(f"\n[DONE] 신규 처리 {processed}건 | 스킵 {skipped}건 | 오류 {errors}건 | 전체 {len(files)}건")
-    if review_cap is not None and not dry_run:
-        _safe_print(f"[MVP] 이번 실행 리뷰 생성 {newly_created}건 (상한 {review_cap})")
     if not dry_run and processed > 0:
         _safe_print(f"[NEXT] Streamlit Review Queue에서 {vault_path}/02_review/ 를 검수하세요.")
 

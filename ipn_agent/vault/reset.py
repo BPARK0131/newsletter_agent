@@ -54,7 +54,7 @@ PHASE_LABELS: dict[str, str] = {
     "01": "Phase 1 — 수집 (fetch_script.py)",
     "02": "Phase 2 — 리뷰 (review_script.py)",
     "03": "Phase 3 — 승인 (수동 이동)",
-    "04": "Phase 4 — 뉴스레터 (newsletter_agent_skeleton.py)",
+    "04": "Phase 4 — 뉴스레터 (newsletter_orchestrator.py)",
     "05": "Phase 5 — 발행 아카이브 (05_newsletter_archive/)",
     "06": "Phase 6 — 발행 used 기사 (06_newsletter_used/)",
     "99": "반려 — HITL rejected (99_rejected/)",
@@ -236,7 +236,7 @@ def run(
         if "03" in phases and "02" not in phases:
             hints.append("02_review/ 에서 승인 후 03_approved/ 로 이동")
         if "04" in phases:
-            hints.append("python newsletter_agent_skeleton.py")
+            hints.append("python newsletter_orchestrator.py --mode draft")
         if "05" in phases:
             hints.append("발행 아카이브(05) 초기화 — published는 04/reset 별도")
         if "06" in phases:

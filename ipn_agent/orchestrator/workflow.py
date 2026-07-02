@@ -97,6 +97,7 @@ def load_sources_node(state: NewsletterWorkflowState) -> NewsletterWorkflowState
         "started_at": _now(),
         "vault_path": str(vault),
         "source_ids": source_ids,
+        "expansion_category_ids": list(state.get("expansion_category_ids") or []),
         "step_status": _merge_step(state, "load_sources", "done"),
         "errors": list(state.get("errors") or []),
         "articles": state.get("articles") or [],
@@ -117,15 +118,11 @@ def collect_node(state: NewsletterWorkflowState) -> NewsletterWorkflowState:
     errors = list(state.get("errors") or [])
 
     if state.get("expansion_only"):
-        articles = _refresh_articles(state)
-        out = {**state, "articles": articles, "step_status": _merge_step(state, "collect", "skipped")}
-        log_event(run_id, "collect", "done", count=0, extra={"skipped": "expansion_only"})
-        save_state_snapshot(run_id, merge_counts_into_state(out))
-        return out
-
-    fetch_ids = [s for s in (state.get("source_ids") or []) if s != "ietf_datatracker"]
-    if "ietf_datatracker" not in fetch_ids:
-        fetch_ids.append("ietf_datatracker")
+        fetch_ids = ["ietf_datatracker"]
+    else:
+        fetch_ids = [s for s in (state.get("source_ids") or []) if s != "ietf_datatracker"]
+        if "ietf_datatracker" not in fetch_ids:
+            fetch_ids.append("ietf_datatracker")
 
     for sid in fetch_ids:
         rc = _run_step("fetch_script.py", ["--source", sid])
@@ -134,8 +131,15 @@ def collect_node(state: NewsletterWorkflowState) -> NewsletterWorkflowState:
             log_event(run_id, "collect", "failed", error=f"{sid} exit {rc}")
 
     articles = _refresh_articles(state)
-    out = {**state, "articles": articles, "errors": errors, "step_status": _merge_step(state, "collect", "done")}
-    log_event(run_id, "collect", "done", count=len(articles))
+    step = "partial" if state.get("expansion_only") else "done"
+    out = {**state, "articles": articles, "errors": errors, "step_status": _merge_step(state, "collect", step)}
+    log_event(
+        run_id,
+        "collect",
+        "done",
+        count=len(articles),
+        extra={"expansion_only": bool(state.get("expansion_only"))},
+    )
     save_state_snapshot(run_id, merge_counts_into_state(out))
     return out
 
@@ -144,7 +148,21 @@ def expansion_search_node(state: NewsletterWorkflowState) -> NewsletterWorkflowS
     run_id = state["run_id"]
     log_event(run_id, "expansion_search", "started")
     errors = list(state.get("errors") or [])
-    rc = _run_step("fetch_script.py", ["--expansion-search"])
+    category_ids = list(state.get("expansion_category_ids") or [])
+    if not category_ids:
+        articles = _refresh_articles(state)
+        out = {
+            **state,
+            "articles": articles,
+            "errors": errors,
+            "step_status": _merge_step(state, "expansion_search", "skipped"),
+        }
+        log_event(run_id, "expansion_search", "done", count=len(articles), extra={"skipped": "no_categories"})
+        save_state_snapshot(run_id, merge_counts_into_state(out))
+        return out
+
+    args = ["--expansion-search", "--categories", ",".join(category_ids)]
+    rc = _run_step("fetch_script.py", args)
     if rc != 0:
         errors = _append_error(state, "expansion_search", f"exit {rc}")
         log_event(run_id, "expansion_search", "failed", error=f"exit {rc}")
@@ -262,7 +280,7 @@ def filter_published_articles_node(state: NewsletterWorkflowState) -> Newsletter
     for a in state.get("articles") or []:
         if a.get("status") != "approved":
             continue
-        if a.get("used_in_newsletter") or a.get("published_at"):
+        if a.get("used_in_newsletter"):
             filtered += 1
             continue
         if is_article_published(
@@ -524,7 +542,6 @@ def build_newsletter_workflow() -> StateGraph:
     return builder
 
 
-build_pipeline_graph = build_newsletter_workflow
 
 newsletter_app = build_newsletter_workflow().compile()
 pipeline_app = newsletter_app
@@ -534,6 +551,7 @@ def run_newsletter_workflow(
     *,
     mode: Literal["collect", "draft", "full"] = "collect",
     source_ids: list[str] | None = None,
+    expansion_category_ids: list[str] | None = None,
     expansion_only: bool = False,
     run_editor: bool = False,
     force_review: bool = False,
@@ -542,6 +560,7 @@ def run_newsletter_workflow(
     initial: NewsletterWorkflowState = {
         "pipeline_mode": mode,
         "source_ids": source_ids,
+        "expansion_category_ids": expansion_category_ids or [],
         "expansion_only": expansion_only,
         "run_editor": run_editor or mode == "full",
         "force_review": force_review,

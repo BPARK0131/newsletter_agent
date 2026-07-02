@@ -52,6 +52,8 @@ from ipn_agent.vault.utils import (
     load_discovery_logs,
     load_sources_from_yaml,
     load_expansion_search_config,
+    build_expansion_picker_sources,
+    split_picker_selection,
     parse_frontmatter,
     parse_review_body,
     publish_newsletter,
@@ -218,26 +220,27 @@ def _source_checkbox_key(source_id: str) -> str:
     return f"source_select_{source_id}"
 
 
+_DISCOVERY_TIER_HELP = (
+    "Tavily 카테고리별 웹검색 · sources.yaml expansion_search 설정 · TAVILY_API_KEY 필요"
+)
+
 _TIER_UI_GROUPS: list[tuple[str, str, bool]] = [
     ("Tier 1", "Core Sources · Tier 1", False),
     ("Tier 2", "Vendor Sources · Tier 2", True),
     ("News", "News Sources · Tier 3", False),
-    ("Reference", "Standards / Reference", False),
+    ("Reference", "Reference", False),
+    ("Discovery", "웹검색", False),
 ]
 
 
 def _default_selected_source_ids(sources: list[dict]) -> list[str]:
-    """기본값: enabled Tier 1~3 + IETF (Reference 중 TM Forum 등은 제외)."""
-    selected: list[str] = []
-    for source in sources:
-        if not source.get("enabled"):
-            continue
-        if source.get("tier") == "Reference":
-            if source.get("is_ietf"):
-                selected.append(source["id"])
-            continue
-        selected.append(source["id"])
-    return selected
+    """기본값: enabled 소스 전체 (Reference · 웹검색 포함)."""
+    return [source["id"] for source in sources if source.get("enabled")]
+
+
+def _article_picker_sources(sources: list[dict]) -> list[dict]:
+    """기사 HITL 수집용 소스 (IETF Datatracker는 Radar 파이프라인에서 자동 실행)."""
+    return [s for s in sources if not s.get("is_ietf")]
 
 
 def _apply_source_selection(sources: list[dict], selected_ids: list[str]) -> None:
@@ -275,6 +278,22 @@ p.ipn-src-tier-title:first-of-type { margin-top: 0.25rem; }
 .ipn-src-picker-wrap .stCheckbox { margin-bottom: 0; padding-bottom: 0; }
 .ipn-src-picker-wrap .stCheckbox label p { font-size: 0.9rem; white-space: nowrap; }
 .ipn-src-selected-count { margin: 0.35rem 0 0.15rem 0; font-size: 0.92rem; }
+.ipn-tier-help-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.05rem;
+  height: 1.05rem;
+  margin-left: 0.15rem;
+  border: 1px solid rgba(49, 51, 63, 0.35);
+  border-radius: 50%;
+  color: rgba(49, 51, 63, 0.65);
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: help;
+  vertical-align: middle;
+}
 </style>
 """,
         unsafe_allow_html=True,
@@ -306,7 +325,6 @@ p.ipn-src-tier-title:first-of-type { margin-top: 0.25rem; }
             _apply_source_selection(all_sources, non_vendor_ids)
             st.rerun()
 
-    row_max = 4
     selected: list[str] = []
 
     with st.container():
@@ -316,33 +334,40 @@ p.ipn-src-tier-title:first-of-type { margin-top: 0.25rem; }
             if not group:
                 continue
 
-            st.markdown(f'<p class="ipn-src-tier-title">{title}</p>', unsafe_allow_html=True)
-            for row_start in range(0, len(group), row_max):
-                row = group[row_start : row_start + row_max]
-                n = len(row)
-                col_weights = [1] * n + [max(3, row_max)]
-                cols = st.columns(col_weights)
-                for col, source in zip(cols[:n], row):
-                    with col:
-                        key = _source_checkbox_key(source["id"])
-                        if key not in st.session_state:
-                            st.session_state[key] = source["id"] in st.session_state.selected_sources
+            if tier_key == "Discovery":
+                help_text = _DISCOVERY_TIER_HELP.replace('"', "&quot;")
+                st.markdown(
+                    f'<p class="ipn-src-tier-title">{title}'
+                    f'<span class="ipn-tier-help-icon" title="{help_text}">?</span></p>',
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.markdown(
+                    f'<p class="ipn-src-tier-title">{title}</p>',
+                    unsafe_allow_html=True,
+                )
 
-                        help_parts: list[str] = []
-                        if source.get("is_ietf"):
-                            help_parts.append("Standards Radar — 뉴스레터 기사 HITL 대상 아님")
-                        elif show_bias:
-                            help_parts.append("Vendor 소스 — 편향(Bias) 검토 권장")
-                        if not source.get("enabled"):
-                            help_parts.append("sources.yaml에서 비활성")
+            cols = st.columns(len(group))
+            for col, source in zip(cols, group):
+                with col:
+                    key = _source_checkbox_key(source["id"])
+                    if key not in st.session_state:
+                        st.session_state[key] = source["id"] in st.session_state.selected_sources
 
-                        checked = st.checkbox(
-                            source["name"],
-                            key=key,
-                            help=" · ".join(help_parts) if help_parts else None,
-                        )
-                        if checked:
-                            selected.append(source["id"])
+                    help_parts: list[str] = []
+                    if show_bias:
+                        help_parts.append("Vendor 소스 — 편향(Bias) 검토 권장")
+                    if not source.get("enabled") and not source.get("is_expansion"):
+                        help_parts.append("sources.yaml에서 비활성")
+
+                    checked = st.checkbox(
+                        source["name"],
+                        key=key,
+                        disabled=not source.get("enabled", True),
+                        help=" · ".join(help_parts) if help_parts else None,
+                    )
+                    if checked:
+                        selected.append(source["id"])
         st.markdown("</div>", unsafe_allow_html=True)
 
     st.session_state.selected_sources = selected
@@ -380,7 +405,7 @@ def _render_run_progress_summary() -> None:
 
     lines = [
         f"✅ 소스 수집 · {collected}건",
-        f"✅ 웹검색 확장 · raw {expansion_raw}건",
+        f"✅ 웹검색 Discovery · raw {expansion_raw}건",
         f"✅ 품질 필터 · 자동 제외 {rejected}건",
         f"✅ 리뷰 생성 · {reviewed}건",
         f"✅ 기사 검토 큐 · 승인대기 {pending}건 / 추가검토 {needs}건",
@@ -445,75 +470,37 @@ def render_sidebar(stats: dict[str, int], vault: Path) -> None:
 
 
 def render_run_tab() -> None:
-    st.header("▶ 실행")
+    st.header("📥 데이터 수집")
 
     sources = load_sources_from_yaml()
     expansion = load_expansion_search_config()
     tavily_ok = bool(os.environ.get("TAVILY_API_KEY", "").strip())
-    exp_enabled = bool(expansion.get("enabled")) and tavily_ok
+    expansion_sources = build_expansion_picker_sources(expansion, tavily_available=tavily_ok)
 
     st.markdown("#### 오늘 수집할 소스")
-    selected = _render_source_picker(sources)
-    source_name_map = {s["id"]: s["name"] for s in sources}
+    picker_sources = _article_picker_sources(sources) + expansion_sources
+    selected = _render_source_picker(picker_sources)
+    rss_ids, expansion_category_ids = split_picker_selection(selected)
+    source_name_map = {s["id"]: s["name"] for s in picker_sources}
     ietf_src = next((s for s in sources if s.get("is_ietf")), None)
-    article_sources = [s for s in sources if not s.get("is_ietf")]
+    article_sources = _article_picker_sources(sources)
 
-    st.markdown("#### 실행 옵션")
-    o1, o2, o3 = st.columns(3)
-    with o1:
-        st.checkbox(
-            "웹검색 확장 포함",
-            value=exp_enabled,
-            disabled=True,
-            help="수집 실행 시 Tavily expansion_search가 자동 실행됩니다.",
-        )
-    with o2:
-        st.checkbox(
-            "IETF Radar 포함",
-            value=True,
-            disabled=True,
-            help="수집 실행 시 standards_radar가 함께 실행됩니다.",
-        )
-    with o3:
-        st.checkbox(
-            "기발행 기사 제외",
-            value=True,
-            disabled=True,
-            help="published registry에 등록된 기사는 HITL·Draft에서 자동 제외됩니다.",
-        )
+    st.caption(
+        "기발행 registry에 등록된 기사는 HITL·Draft에서 **항상 제외**됩니다. "
+        "IETF Radar는 수집 실행 시 자동으로 포함됩니다."
+    )
 
-    wc1, wc2, wc3 = st.columns(3)
-    with wc1:
-        if st.button("수집 실행", type="primary", key="wf_collect"):
+    if st.button("수집 실행", type="primary", key="wf_collect"):
+        if not rss_ids and not expansion_category_ids:
+            st.error("수집할 RSS/API 소스 또는 웹검색 카테고리를 하나 이상 선택하세요.")
+        else:
             result = run_orchestrator_workflow(
                 mode="collect",
-                source_ids=selected if selected else None,
-                expansion_only=not selected,
+                source_ids=rss_ids or None,
+                expansion_category_ids=expansion_category_ids or None,
+                expansion_only=not rss_ids and bool(expansion_category_ids),
                 compact_ui=True,
                 label="수집 실행",
-                source_name_map=source_name_map,
-            )
-            if result:
-                st.session_state.workflow_state = result
-            st.rerun()
-    with wc2:
-        if st.button("Draft 생성", key="wf_draft"):
-            result = run_orchestrator_workflow(
-                mode="draft",
-                compact_ui=True,
-                label="Draft 생성",
-            )
-            if result:
-                st.session_state.workflow_state = result
-            st.rerun()
-    with wc3:
-        if st.button("전체 실행", key="wf_full"):
-            result = run_orchestrator_workflow(
-                mode="full",
-                source_ids=selected if selected else None,
-                expansion_only=not selected,
-                compact_ui=True,
-                label="전체 실행",
                 source_name_map=source_name_map,
             )
             if result:
@@ -719,7 +706,7 @@ def render_ops_console_tab() -> None:
         with st.expander("Radar Preview", expanded=False):
             st.markdown(body if body else read_markdown(radar_path))
     else:
-        st.warning("Radar 파일 없음 — 실행 탭에서 Orchestrator를 실행하세요.")
+        st.warning("Radar 파일 없음 — **데이터 수집** 탭에서 Orchestrator를 실행하세요.")
 
     st.divider()
     st.markdown("#### Tool 로그")
@@ -733,6 +720,14 @@ def render_ops_console_tab() -> None:
 
 def render_article_review_tab() -> None:
     st.header("📋 기사 검토")
+    # v0.7 이전 일괄승인 multiselect 위젯 state — 구버전 세션 잔여 키 제거
+    for legacy_key in (
+        "review_batch_multiselect",
+        "review_select_all",
+        "review_deselect_all",
+    ):
+        st.session_state.pop(legacy_key, None)
+
     st.caption(
         "RSS · 등록소스 · Tavily 웹검색 — 모두 `02_review/` 통합 HITL · "
         "review_score 기준 (≥0.80 승인대기 · 0.55~0.80 추가검토 · <0.55 자동제외)"
@@ -817,8 +812,30 @@ def render_article_review_tab() -> None:
             st.rerun()
 
         if not filtered:
-            st.info("검토 대기 기사가 없습니다. **실행** 탭에서 Orchestrator를 실행하세요.")
+            st.info("검토 대기 기사가 없습니다. **데이터 수집** 탭에서 Orchestrator를 실행하세요.")
             return
+
+        if queue_mode == "승인 대기":
+            st.markdown("**일괄 승인**")
+            if st.button(
+                f"일괄 승인 ({len(filtered)}건)",
+                type="primary",
+                key="review_batch_approve",
+            ):
+                ok_count = 0
+                fail_msgs: list[str] = []
+                for row in filtered:
+                    ok, msg = approve_review(row["filename"])
+                    if ok:
+                        ok_count += 1
+                    else:
+                        fail_msgs.append(msg)
+                if ok_count:
+                    st.success(f"{ok_count}건 승인 완료")
+                if fail_msgs:
+                    st.warning(" · ".join(fail_msgs[:3]))
+                st.rerun()
+            st.divider()
 
         labels = []
         for i in filtered:
@@ -936,10 +953,22 @@ def render_newsletter_tab() -> None:
                 if cat not in by_cat:
                     continue
                 st.markdown(f"**{cat}** · {len(by_cat[cat])}건")
-                for item in sorted(by_cat[cat], key=lambda x: -x["importance_score"])[:3]:
-                    st.caption(f"· {item['title'][:55]} ★{item['importance_score']}")
-                if len(by_cat[cat]) > 3:
-                    st.caption(f"… 외 {len(by_cat[cat]) - 3}건")
+                for item in sorted(by_cat[cat], key=lambda x: -x["importance_score"]):
+                    with st.expander(
+                        f"★{item['importance_score']} · {item['title'][:60]}",
+                        expanded=False,
+                    ):
+                        if item.get("summary"):
+                            st.markdown("**요약**")
+                            st.markdown(item["summary"])
+                        if item.get("key_points"):
+                            st.markdown("**핵심 포인트**")
+                            st.markdown(item["key_points"])
+                        if item.get("newsletter_candidate"):
+                            st.markdown("**뉴스레터 후보**")
+                            st.markdown(item["newsletter_candidate"])
+                        if item.get("source_url"):
+                            st.markdown(f"[원문]({item['source_url']})")
         else:
             st.caption("승인된 기사가 없습니다.")
 
@@ -957,7 +986,8 @@ def render_newsletter_tab() -> None:
                 )
                 if result:
                     st.session_state.workflow_state = result
-                st.rerun()
+                    if result.get("draft_path"):
+                        st.rerun()
 
     elif mode == "Draft 검토":
         if not draft_files:
@@ -1126,7 +1156,7 @@ def main() -> None:
     with st.sidebar:
         render_sidebar(stats, vault)
     tab_run, tab_review, tab_nl, tab_arch, tab_ops = st.tabs([
-        "▶ 실행",
+        "📥 데이터 수집",
         "📋 기사 검토",
         "📰 뉴스레터",
         "📦 아카이브",

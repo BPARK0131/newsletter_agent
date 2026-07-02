@@ -591,7 +591,7 @@ AGENT_TIMEOUTS: dict[str, int] = {
     "fetch_script.py": 1200,
     "review_script.py": 3600,
     "standards_radar_script.py": 300,
-    "newsletter_agent_skeleton.py": 600,
+    "newsletter_orchestrator.py": 7200,
     "research_review_agent.py": 7200,
 }
 
@@ -743,6 +743,7 @@ def render_compact_collect_progress(
     progress_state: dict[str, Any] | None,
     source_name_map: dict[str, str] | None,
     source_ids: list[str] | None,
+    expansion_category_ids: list[str] | None = None,
     expansion_only: bool = False,
 ) -> dict[str, Any]:
     """실행 탭 compact 진행 UI — FETCH/DISCOVERY PROGRESS 기반."""
@@ -752,6 +753,7 @@ def render_compact_collect_progress(
     discovery_states = _progress_states_by_target(logs, "discovery_progress")
     latest = _latest_entries_by_tool(logs)
     ordered = [] if expansion_only else list(source_ids or [])
+    expansion_cats = list(expansion_category_ids or [])
 
     current_lines: list[str] = []
     log_lines: list[str] = []
@@ -783,6 +785,12 @@ def render_compact_collect_progress(
             if msg:
                 log_lines.append(f"✓ **전체 수집** · {msg.split('·', 1)[-1].strip()[:70]}")
 
+    elif expansion_only and expansion_cats:
+        labels = [_discovery_display_name(cid) for cid in expansion_cats[:3]]
+        preview = ", ".join(labels)
+        if len(expansion_cats) > 3:
+            preview += f" … 외 {len(expansion_cats) - 3}개"
+        current_lines.append(f"· **웹검색 Discovery** · {preview}")
     elif expansion_only:
         current_lines.append("· **Tavily Discovery** · 웹검색만 실행")
 
@@ -857,7 +865,10 @@ def render_compact_collect_progress(
         or not ordered
         or all(fetch_states.get(s, {}).get("status") in ("success", "error") for s in ordered)
     )
-    discovery_done = _phase_status(["expansion_search"], latest) in ("success", "error", "skip")
+    discovery_done = (
+        not expansion_cats
+        or _phase_status(["expansion_search"], latest) in ("success", "error", "skip")
+    )
 
     return {
         "failed_sources": failed_sources,
@@ -872,6 +883,7 @@ def build_compact_run_completion_summary(
     logs: list[dict],
     *,
     source_ids: list[str] | None,
+    expansion_category_ids: list[str] | None = None,
     source_name_map: dict[str, str] | None,
     result: dict | None,
     progress_info: dict[str, Any],
@@ -880,7 +892,7 @@ def build_compact_run_completion_summary(
 ) -> dict[str, Any]:
     """실행 완료 후 실행 탭 요약용."""
     name_map = source_name_map or {}
-    selected_count = len(source_ids or [])
+    selected_count = len(source_ids or []) + len(expansion_category_ids or [])
     failed = list(progress_info.get("failed_sources") or [])
     errors = list((result or {}).get("errors") or [])
 
@@ -888,6 +900,7 @@ def build_compact_run_completion_summary(
         "run_label": run_label,
         "selected_count": selected_count,
         "expansion_only": expansion_only,
+        "expansion_selected": bool(expansion_category_ids),
         "failed_sources": failed,
         "errors": errors,
         "raw_ok": progress_info.get("fetch_done", progress_info.get("rss_done", False))
@@ -903,12 +916,12 @@ def render_compact_completion_block(summary: dict[str, Any]) -> None:
     st.markdown("---")
     st.markdown(f"**{summary.get('run_label', '실행')} 완료**")
     if summary.get("expansion_only"):
-        st.markdown(f"- 수집 모드: Tavily Discovery만")
+        st.markdown("- 수집 모드: 웹검색 Discovery만")
     else:
-        st.markdown(f"- 선택 소스: **{summary.get('selected_count', 0)}**개")
+        st.markdown(f"- 선택 항목: **{summary.get('selected_count', 0)}**개 (RSS/API + 웹검색)")
     st.markdown(f"- Raw 수집: {'완료' if summary.get('raw_ok') else '확인 필요'}")
-    if not summary.get("expansion_only"):
-        st.markdown(f"- 웹검색 확장: {'완료' if summary.get('expansion_ok') else '미실행/확인 필요'}")
+    if summary.get("expansion_selected"):
+        st.markdown(f"- 웹검색 Discovery: {'완료' if summary.get('expansion_ok') else '미실행/확인 필요'}")
     st.markdown(f"- Review 생성: {'완료' if summary.get('review_ok') else '확인 필요'}")
     st.markdown("- HITL 검토 큐: **기사 검토** 탭에서 확인")
     failed = summary.get("failed_sources") or []
@@ -924,6 +937,7 @@ def run_orchestrator_workflow(
     *,
     mode: Literal["collect", "draft", "full"],
     source_ids: list[str] | None = None,
+    expansion_category_ids: list[str] | None = None,
     expansion_only: bool = False,
     label: str | None = None,
     compact_ui: bool = False,
@@ -950,6 +964,7 @@ def run_orchestrator_workflow(
             result_holder["result"] = run_newsletter_workflow(
                 mode=mode,
                 source_ids=source_ids,
+                expansion_category_ids=expansion_category_ids,
                 expansion_only=expansion_only,
             )
         except Exception as exc:
@@ -966,14 +981,23 @@ def run_orchestrator_workflow(
         compact_ph = None
         if compact_ui:
             if mode in ("collect", "full"):
+                preview_parts: list[str] = []
                 if source_ids:
                     names = [source_name_map.get(s, s) for s in source_ids]
-                    preview = ", ".join(names[:6])
-                    if len(source_ids) > 6:
-                        preview += f" … 외 {len(source_ids) - 6}개"
-                    st.caption(f"수집 대상 · {preview} ({len(source_ids)}개 소스)")
-                elif expansion_only:
-                    st.caption("수집 대상 · Tavily Discovery (등록 소스 미선택)")
+                    preview_parts.append(", ".join(names[:4]))
+                    if len(source_ids) > 4:
+                        preview_parts[-1] += f" … 외 {len(source_ids) - 4}개"
+                if expansion_category_ids:
+                    cat_names = [
+                        _discovery_display_name(cid) for cid in expansion_category_ids[:3]
+                    ]
+                    cat_preview = ", ".join(cat_names)
+                    if len(expansion_category_ids) > 3:
+                        cat_preview += f" … 외 {len(expansion_category_ids) - 3}개"
+                    preview_parts.append(f"웹검색 {cat_preview}")
+                if preview_parts:
+                    total = len(source_ids or []) + len(expansion_category_ids or [])
+                    st.caption(f"수집 대상 · {' · '.join(preview_parts)} ({total}개)")
                 compact_ph = st.empty()
                 render_compact_collect_progress(
                     [],
@@ -981,6 +1005,7 @@ def run_orchestrator_workflow(
                     progress_state=progress_state,
                     source_name_map=source_name_map,
                     source_ids=source_ids,
+                    expansion_category_ids=expansion_category_ids,
                     expansion_only=expansion_only,
                 )
                 with st.expander("파이프라인 단계 안내", expanded=False):
@@ -1018,6 +1043,7 @@ def run_orchestrator_workflow(
                     progress_state=progress_state,
                     source_name_map=source_name_map,
                     source_ids=source_ids,
+                    expansion_category_ids=expansion_category_ids,
                     expansion_only=expansion_only,
                 )
             elif not compact_ui:
@@ -1037,6 +1063,7 @@ def run_orchestrator_workflow(
                 progress_state=progress_state,
                 source_name_map=source_name_map,
                 source_ids=source_ids,
+                expansion_category_ids=expansion_category_ids,
                 expansion_only=expansion_only,
             )
         elif not compact_ui:
@@ -1064,6 +1091,7 @@ def run_orchestrator_workflow(
             summary = build_compact_run_completion_summary(
                 new_logs,
                 source_ids=source_ids,
+                expansion_category_ids=expansion_category_ids,
                 source_name_map=source_name_map,
                 result=result,
                 progress_info=progress_info,
@@ -1081,13 +1109,23 @@ def run_orchestrator_workflow(
                 pass  # completion block already shown
             else:
                 st.success("✅ HITL Queue 준비 완료 — **기사 검토** 탭에서 검수하세요.")
-        elif mode == "draft" and result.get("draft_path"):
-            if compact_ui:
-                st.write("✅ Draft가 생성되었습니다. **뉴스레터** 탭에서 확인하세요.")
+        elif mode == "draft":
+            if result.get("draft_path"):
+                status.update(label=f"{run_label} 완료", state="complete")
+                st.success(
+                    f"Draft 생성 완료 · `{Path(result['draft_path']).name}` — "
+                    "**Draft 검토**에서 확인하세요."
+                )
+            elif result.get("errors"):
+                status.update(label=f"{run_label} 실패", state="error")
+                err = result["errors"][-1]
+                st.error(str(err.get("error", err)))
             else:
-                st.success(f"Draft 생성: `{result['draft_path']}`")
-        elif result.get("errors"):
-            st.warning(str(result["errors"][-1]))
+                status.update(label=f"{run_label} 실패", state="error")
+                st.error(
+                    "Draft가 생성되지 않았습니다. "
+                    "승인 기사(03_approved)가 있는지, 기발행 registry에 막히지 않았는지 확인하세요."
+                )
 
         return result
 

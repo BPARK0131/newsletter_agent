@@ -50,6 +50,7 @@ class NewsletterWorkflowState(TypedDict, total=False):
     vault_path: str
     pipeline_mode: WorkflowMode
     source_ids: list[str]
+    expansion_category_ids: list[str]
     expansion_only: bool
     run_editor: bool
     force_review: bool

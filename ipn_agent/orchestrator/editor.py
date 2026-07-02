@@ -1,14 +1,21 @@
-"""뉴스레터 Editor 핵심 로직 — Orchestrator editor node 및 legacy CLI에서 공유."""
+"""뉴스레터 Editor — Orchestrator editor node."""
 
 from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, TYPE_CHECKING
+from typing import Any
 
-if TYPE_CHECKING:
-    from ipn_agent.legacy.skeleton import NewsletterOutput
+from ipn_agent.orchestrator.newsletter import (
+    NewsletterOutput,
+    analysis_node,
+    editor_node,
+    hitl_node,
+    load_approved_from_rel_paths,
+    obsidian_loader_node,
+    standards_linker_node,
+)
 
 
 @dataclass
@@ -34,11 +41,6 @@ def prepare_newsletter_context(
     *,
     load_all_approved: bool = False,
 ) -> EditorContext | None:
-    from ipn_agent.legacy.skeleton import (
-        _load_approved_from_rel_paths,
-        obsidian_loader_node,
-    )
-
     paths = list(approved_rel_paths or [])
     fallback_used = False
 
@@ -47,7 +49,7 @@ def prepare_newsletter_context(
         raw = loader_out.get("raw_articles") or []
         fallback_used = bool(loader_out.get("fallback_used"))
     else:
-        raw = _load_approved_from_rel_paths(vault_path, paths)
+        raw = load_approved_from_rel_paths(vault_path, paths)
 
     if not raw:
         return None
@@ -61,13 +63,6 @@ def prepare_newsletter_context(
 
 
 def generate_newsletter_draft(ctx: EditorContext) -> dict[str, Any]:
-    from ipn_agent.legacy.skeleton import (
-        analysis_node,
-        editor_node,
-        hitl_node,
-        standards_linker_node,
-    )
-
     state: dict[str, Any] = {
         "messages": [],
         "sources": [],
@@ -93,8 +88,6 @@ def refine_newsletter_draft(
     *,
     vault_path: str = "",
 ) -> DraftResult | None:
-    from ipn_agent.legacy.skeleton import NewsletterOutput
-
     if not newsletter:
         return None
 

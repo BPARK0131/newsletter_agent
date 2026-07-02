@@ -60,7 +60,11 @@ def load_enabled_source_ids() -> list[str]:
     return ids
 
 
-def run(sources: list[str] | None = None, expansion_only: bool = False) -> int:
+def run(
+    sources: list[str] | None = None,
+    expansion_only: bool = False,
+    expansion_categories: list[str] | None = None,
+) -> int:
     vault = os.environ.get("OBSIDIAN_VAULT_PATH", "")
     if not vault:
         print("[ERROR] OBSIDIAN_VAULT_PATH 환경변수 미설정")
@@ -68,6 +72,9 @@ def run(sources: list[str] | None = None, expansion_only: bool = False) -> int:
 
     if expansion_only:
         print("[INFO] Collect & Analyze — Expansion-only (Tavily 웹 검색)")
+        rc = _run_step("fetch_script.py", ["--source", "ietf_datatracker"])
+        if rc != 0:
+            print(f"[WARN] fetch ietf_datatracker 실패 (exit {rc}) — 계속 진행")
     else:
         selected = sources if sources is not None else load_enabled_source_ids()
         if not selected:
@@ -97,11 +104,17 @@ def run(sources: list[str] | None = None, expansion_only: bool = False) -> int:
                 )
         print(f"[FETCH PROGRESS] {fetch_total}/{fetch_total} | — | 전체 소스 fetch 완료", flush=True)
 
-    # Tavily expansion search (웹 검색, max_total_results건)
-    print("[DISCOVERY PROGRESS] — | Tavily Discovery Search 시작", flush=True)
-    rc = _run_step("fetch_script.py", ["--expansion-search"])
-    if rc != 0:
-        print(f"[WARN] expansion-search 실패 (exit {rc}) — 계속 진행")
+    # Tavily expansion search (선택 카테고리만; None이면 전체 카테고리)
+    if expansion_categories is not None and not expansion_categories:
+        print("\n[SKIP] expansion_search - 선택된 웹검색 카테고리 없음")
+    else:
+        print("[DISCOVERY PROGRESS] — | Tavily Discovery Search 시작", flush=True)
+        args = ["--expansion-search"]
+        if expansion_categories:
+            args.extend(["--categories", ",".join(expansion_categories)])
+        rc = _run_step("fetch_script.py", args)
+        if rc != 0:
+            print(f"[WARN] expansion-search 실패 (exit {rc}) — 계속 진행")
 
     # 2. IETF Radar (표준화 컨텍스트)
     rc = _run_step("standards_radar_script.py")

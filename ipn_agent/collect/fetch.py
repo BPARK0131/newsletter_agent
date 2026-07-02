@@ -33,7 +33,7 @@ Obsidian 검수 흐름:
   2. Obsidian에서 01_raw/ 폴더 열기 → 기사 검토
   3. 뉴스레터에 포함할 파일 → 03_approved/ 폴더로 이동
   4. 제외할 파일 → 02_review/ 에서 삭제 또는 방치
-  5. newsletter_agent_skeleton.py 실행 → 03_approved/ 읽어서 분석·편집
+  5. newsletter_orchestrator.py --mode draft → 03_approved/ 읽어서 draft 생성
 """
 
 from urllib.parse import urlparse
@@ -1370,6 +1370,7 @@ def run_expansion_search(
     vault_path: str,
     dry_run: bool = False,
     target_category: str | None = None,
+    target_categories: list[str] | None = None,
 ) -> int:
     """sources.yaml expansion_search — semi-open discovery.
 
@@ -1395,10 +1396,16 @@ def run_expansion_search(
     mode = es_cfg.get("mode", "semi_open_discovery")
     global_exclude = _discovery_exclude_domains(es_cfg)
     categories = es_cfg.get("search_categories", [])
-    if target_category:
-        categories = [c for c in categories if c["id"] == target_category]
+    filter_ids: list[str] | None = None
+    if target_categories:
+        filter_ids = [c for c in target_categories if c]
+    elif target_category:
+        filter_ids = [target_category]
+    if filter_ids is not None:
+        categories = [c for c in categories if c.get("id") in filter_ids]
         if not categories:
-            print(f"[ERROR] expansion_search 카테고리 '{target_category}'를 찾을 수 없습니다.")
+            missing = ", ".join(filter_ids)
+            print(f"[ERROR] expansion_search 카테고리를 찾을 수 없습니다: {missing}")
             return 0
 
     print(
@@ -1710,7 +1717,11 @@ if __name__ == "__main__":
     parser.add_argument("--dry-run",          action="store_true", help="저장 없이 URL 목록만 출력")
     parser.add_argument("--expansion-search", action="store_true",
                         help="카테고리별 Tavily 확장 검색만 실행 (RSS 수집 생략)")
-    parser.add_argument("--category",         help="--expansion-search 시 특정 카테고리만 실행")
+    parser.add_argument("--category",         help="--expansion-search 시 특정 카테고리 1개만 실행")
+    parser.add_argument(
+        "--categories",
+        help="--expansion-search 시 쉼표 구분 카테고리 ID (예: routing_ops,netdevops)",
+    )
     args = parser.parse_args()
 
     if args.expansion_search:
@@ -1722,7 +1733,15 @@ if __name__ == "__main__":
         config_path = PROJECT_DIR / "sources.yaml"
         with open(config_path, encoding="utf-8") as f:
             config = yaml.safe_load(f)
-        run_expansion_search(config, vault_path, dry_run=args.dry_run,
-                             target_category=args.category)
+        cat_list = None
+        if args.categories:
+            cat_list = [c.strip() for c in args.categories.split(",") if c.strip()]
+        run_expansion_search(
+            config,
+            vault_path,
+            dry_run=args.dry_run,
+            target_category=args.category,
+            target_categories=cat_list,
+        )
     else:
         run(target_source=args.source, dry_run=args.dry_run)

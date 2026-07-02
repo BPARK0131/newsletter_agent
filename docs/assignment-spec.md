@@ -112,16 +112,14 @@ IP Network 영역은 Backbone, Backhaul, Data Center Network, IP 보안, NetDevO
 | **Published Registry**| `ipn_agent.registry.published` → `vault/registry/published_articles.json` |
 | Standards Radar Agent | `standards_radar_script.py` → `ipn_agent.standards.radar` → `04_newsletter/ietf_radar.md` |
 | **Python 패키지**     | `ipn_agent/` — 역할별 서브패키지, 루트 CLI wrapper 유지 ([project-structure.md](./project-structure.md)) |
-| Standards Linker      | `standards_linker_node` (`ipn_agent.legacy.skeleton`, LLM 없음) → `standards_context` |
+| Standards Linker      | `standards_linker_node` (`ipn_agent.orchestrator.newsletter`, LLM 없음) → `standards_context` |
 | Editor Agent          | `editor_node()` · `ipn_agent.orchestrator.editor` → `04_newsletter/draft/` |
 | **공유 Artifact Store** | Obsidian Vault — Agent 간 handoff·HITL·발행 스냅샷 |
 | 메인 UI                 | Streamlit v0.7 — **5탭** + **Newsletter Orchestrator** + 통합 HITL |
-| 보조 UI                 | LangGraph dev + Chat UI (`newsletter_agent_skeleton.app`, deprecated) |
 | 데이터 수집                | RSS / blog_index / API(IETF) / Tavily Extract                        |
-| Fallback              | `load_sample_node()` ← `sample_articles.json`                        |
 | 분류                    | IP Network 카테고리 + `importance_score` · `topic_tags`                  |
 | 요약                    | 한국어 헤드라인·3~5줄 요약·뉴스레터 후보 문장                                          |
-| 검증                    | Analysis Agent + LLM-as-Judge + Human Agent(HITL)                    |
+| 검증                    | Analysis Agent (1차) LLM 편향 판단 + Human Agent(HITL)                 |
 | 결과 저장                 | Vault Markdown + JSON *(Streamlit·Chat UI 연동)*                       |
 | 발표 산출물                | `docs/` 문서, `docs/sources-checklist.md`, 시연 시나리오                              |
 
@@ -156,8 +154,8 @@ IP Network 영역은 Backbone, Backhaul, Data Center Network, IP 보안, NetDevO
 | **Analysis Agent (1차)**   | `review_script.py` → `ipn_agent.review.runner` | `02_review/`              | ✅           |
 | **Human Agent (HITL)**    | `streamlit_app.py` + `ipn_agent.vault.utils` | `03_approved/` · `99_rejected/` | ✅ |
 | **Standards Radar Agent** | `standards_radar_script.py` → `ipn_agent.standards.radar` | `04_newsletter/ietf_radar.md` | ✅ |
-| **Standards Linker**      | `standards_linker_node` (`ipn_agent.legacy.skeleton`) | `ArticleAnalysis.standards_context` | ✅ |
-| **Editor (Chat UI)**      | `newsletter_agent_skeleton.py` → `ipn_agent.legacy.skeleton` | `04_newsletter/draft/` (deprecated) | ✅ |
+| **Standards Linker**      | `standards_linker_node` (`ipn_agent.orchestrator.newsletter`) | `ArticleAnalysis.standards_context` | ✅ |
+| **Editor draft 파이프라인** | `ipn_agent.orchestrator.editor` → `analysis_node` · `editor_node` | `04_newsletter/draft/` | ✅ |
 | **발행 관리**               | `ipn_agent.vault.utils.publish_newsletter` | `04_newsletter/published/` | ✅ |
 | **Presentation Layer**    | Streamlit + Chat UI            | —                                     | ✅ Streamlit / ⬜ Chat |
 | **Tool 로깅**              | `ipn_agent.core.tool_logger`   | `logs/tool_runs.jsonl`                | ✅           |
@@ -239,10 +237,6 @@ Obsidian Vault는 ETL 파이프라인 단계가 아니라, **Agent 간 공유 Ar
 │    prepare_newsletter_context → generate_newsletter_draft            │
 │      → refine_newsletter_draft → draft/                              │
 ├─────────────────────────────────────────────────────────────────────┤
-│  Editor subgraph (deprecated) — newsletter_agent_skeleton.py → ipn_agent.legacy.skeleton │
-│    obsidian_loader → [load_sample | tavily] → analysis              │
-│      → [hitl] → standards_linker → editor → draft/  (Chat UI 전용)   │
-├─────────────────────────────────────────────────────────────────────┤
 │  Presentation Layer (최종 산출물)                                    │
 │  Streamlit 뉴스레터 보드 (메인)  +  LangGraph Chat UI (보조)          │
 └─────────────────────────────────────────────────────────────────────┘
@@ -259,17 +253,16 @@ Obsidian Vault는 ETL 파이프라인 단계가 아니라, **Agent 간 공유 Ar
 | **Threshold Router**      | score → approval_pending / needs_human_review / rejected | `ipn_agent.review.hitl` | `02_review` frontmatter |
 | **Published Guard**       | 기발행 기사 draft·HITL 재진입 차단               | `ipn_agent.registry.published` | `registry/published_articles.json` |
 | **Standards Radar Agent** | IETF WG 표준 변화 신호 감지 (뉴스 ❌)             | `standards_radar_script.py` → `ipn_agent.standards.radar` | `ietf_radar.md`  |
-| **Standards Linker**      | 기사별 IETF 표준 맥락 연결 (LLM 없음)            | `standards_linker_node` (`ipn_agent.legacy.skeleton`) | `standards_context` |
-| **Analysis Agent (2차)**   | 승인 기사 재분류·Judge·뉴스레터용 정제               | `analysis_node()` (`ipn_agent.legacy.skeleton`) | State `analyzed_articles`   |
+| **Standards Linker**      | 기사별 IETF 표준 맥락 연결 (LLM 없음)            | `standards_linker_node` (`ipn_agent.orchestrator.newsletter`) | `standards_context` |
+| **Editor Assembly** | 승인 기사 → draft 조립 (**LLM 재호출 없음**, 1차 결과 재사용) | `analysis_node()` · `editor_node()` (`ipn_agent.orchestrator.newsletter`) | `analyzed_articles` · `draft/` |
 | **Editor Agent**          | 카테고리별 편집·draft Markdown 생성              | `editor_node()` · `ipn_agent.orchestrator.editor` | `04_newsletter/draft/`    |
 | **Newsletter Orchestrator** | collect~draft 단일 Graph · editor node 3분할 | `newsletter_orchestrator.py` → `ipn_agent.orchestrator.workflow` | `NewsletterWorkflowState` |
-| **Editor subgraph (deprecated)** | Chat UI fallback·Tavily 보강 | `newsletter_agent_skeleton.py` → `ipn_agent.legacy.skeleton` | LangGraph `NewsletterState` |
 
 
 > **왜 스크립트 + LangGraph 혼합인가?**  
 > Research·Analysis(1차)는 해커톤 전 **배치 Agent**로 안정적으로 돌리고,  
 > v0.6부터 **Newsletter Orchestrator**가 collect~draft를 단일 Graph로 조율한다.  
-> Editor subgraph(`app`)는 Chat UI 시연용으로만 유지한다.  
+> Editor draft 단계의 `analysis_node`는 **2차 LLM 분석이 아니라** 1차 리뷰 결과를 draft용 스키마로 조립한다.  
 > Vault handoff는 프로덕션 Multi-Agent에서 흔한 **비동기 Agent 협업 패턴**이다.
 
 ### 5.1 Vault = Agent 공유 Artifact Store
@@ -301,10 +294,8 @@ Editor는 **`editor_prepare` → `editor_generate` → `editor_quality_check`** 
 핵심 로직은 `ipn_agent.orchestrator.editor` 함수가 담당한다.  
 하위 스크립트(fetch/review/radar)는 subprocess wrapper로 호출 — 기존 로직 유지.
 
-**Editor subgraph (`newsletter_agent_skeleton.py` `app`) — deprecated**  
-Chat UI / langgraph.json 시연용으로만 유지. Streamlit 기본 경로는 Orchestrator가 Editor node를 직접 호출한다.
-
-Research / Analysis (1차)는 독립 스크립트 + Orchestrator node wrapper로 실행된다.
+Research / Analysis (1차)는 독립 스크립트 + Orchestrator node wrapper로 실행된다.  
+Editor draft는 `ipn_agent.orchestrator.editor`가 `ipn_agent.orchestrator.newsletter`의 노드 함수를 순차 호출한다.
 
 LangSmith에서 **Agent별·노드별 실행 추적**이 가능하고,
 발표 시 Research → Analysis → Human → Editor 역할 분리를 명확히 설명할 수 있다.
@@ -406,10 +397,8 @@ flowchart TB
 |------------|----------------|-----------|
 | Streamlit **Newsletter Orchestrator** · `newsletter_orchestrator.py` | 단일 StateGraph | ✅ |
 | Streamlit **Collect & Analyze** · `research_review_agent.py` | subprocess 순차 | ❌ (레거시) |
-| LangGraph Chat UI · `newsletter_agent_skeleton.py` `app` | Editor subgraph 단독 | ✅ (deprecated) |
 
-> v0.6부터 Streamlit 기본 draft 경로는 Orchestrator의 editor node 3분할이다.  
-> `newsletter_agent_skeleton.py`의 Editor subgraph는 Chat UI 시연용으로만 유지한다.
+> v0.8부터 Streamlit 기본 draft 경로는 Orchestrator의 editor node 3분할(`editor_prepare` → `generate` → `quality_check`)이다.
 
 #### 5.3.2 Collect & Analyze — Tool 호출 순서
 
@@ -462,44 +451,19 @@ flowchart LR
 > **Discovery (v0.7):** `expansion_search` → quality gate → `01_raw/expansion/` + LLM Review → `02_review/` (자동).  
 > `00_discovery/candidates/`는 staging·감사용. HITL은 **기사 검토** 탭 단일 단계.
 
-#### 5.3.3 Editor subgraph (deprecated) — LangGraph 노드 · Tool
+#### 5.3.3 Editor draft 파이프라인 (Orchestrator 내부)
 
-> **v0.6:** Streamlit 기본 draft 경로는 §5.3.4 Orchestrator의 `editor_prepare→generate→quality_check`이다.  
-> 아래 Graph는 **Chat UI / `langgraph.json` 시연용**으로만 유지한다.
-
-`python newsletter_agent_skeleton.py` (deprecated) 또는 LangGraph Chat UI.
+> **v0.8:** Streamlit 기본 draft 경로는 §5.3.4 Orchestrator의 `editor_prepare→generate→quality_check`이다.  
+> `editor_generate` 내부에서 `ipn_agent.orchestrator.newsletter` 노드가 순차 실행된다.
 
 ```mermaid
 flowchart TB
-    START((START)) --> SL["source_loader_node<br/>sources.yaml · vault 경로"]
-    SL --> OL["obsidian_loader_node<br/>Tool: approved_reader<br/>03_approved/ → RawArticle"]
-
-    OL --> C1{승인 기사<br/>있음?}
-    C1 -->|No| LS["load_sample_node<br/>sample_articles.json"]
-    C1 -->|Yes, &lt;5건| TV["tavily_node<br/>Tavily Search 보강"]
-    C1 -->|Yes, ≥5건| AN["analysis_node<br/>Analysis Agent 2차"]
-
-    LS --> AN
-    TV --> AN
-
-    AN --> C2{bias_count<br/>&gt; 0?}
-    C2 -->|Yes| HI["hitl_node<br/>편향 항목 표시"]
-    C2 -->|No| ST["standards_linker_node<br/>Tool: standards_linker<br/>룰 기반 WG 매칭"]
-    HI --> ST
-
-    ST --> ED["editor_node<br/>Tool: newsletter_generator"]
-    ED --> WR["newsletter_writer<br/>04_newsletter/draft/"]
-    WR --> END((END))
-
-    subgraph PublishHuman["Human — Streamlit 발행 확정"]
-        PH["publish_newsletter()"]
-        PH --> P1["published/"]
-        PH --> P2["05_archive/"]
-        PH --> P3["06_used/"]
-        PH --> P4["draft 삭제"]
-    end
-
-    WR -.->|Human 검토 후| PH
+    EP["editor_prepare<br/>03_approved/ → RawArticle"] --> AN["analysis_node<br/>1차 결과 조립 (LLM 없음)"]
+    AN --> ST["standards_linker_node<br/>룰 기반 WG 매칭"]
+    ST --> HI["hitl_node<br/>편향 항목 표시"]
+    HI --> ED["editor_node<br/>카테고리별 draft Markdown"]
+    ED --> WR["04_newsletter/draft/"]
+    WR --> EQ["editor_quality_check<br/>refine"]
 ```
 
 | 단계 | CLI / UI | Vault 결과 |
@@ -526,16 +490,10 @@ python review_script.py
 # Human Agent (HITL) — Streamlit
 #   · 기사 검토 탭 · 운영콘솔 (staging · IETF)
 
-# Editor subgraph (deprecated — Chat UI)
-python newsletter_agent_skeleton.py
-
 # Newsletter Orchestrator (v0.6+) — ipn_agent.orchestrator.workflow
 python newsletter_orchestrator.py --mode collect
 python newsletter_orchestrator.py --mode draft
 python newsletter_orchestrator.py --mode full
-
-# deprecated wrapper (동일 동작)
-python pipeline_graph.py --mode collect
 ```
 
 #### 5.3.4 Newsletter Orchestrator — LangGraph 노드 (v0.6)
@@ -576,17 +534,14 @@ flowchart TB
 | **Analysis Agent (1차)**   | LLM 1차 리뷰             | `review_script.py` → `ipn_agent.review.runner` | `02_review/`                    |
 | **Human Agent (HITL)**    | 리뷰 승인·반려·필터링       | `streamlit_app.py` + `ipn_agent.vault.utils` | `03_approved/` · `99_rejected/` |
 | **Standards Radar Agent** | IETF 표준화 레이더          | `standards_radar_script.py` → `ipn_agent.standards.radar` | `ietf_radar.md`               |
-| `standards_linker_node`   | 기사별 표준 맥락 (룰)       | `ipn_agent.legacy.skeleton` | `standards_context`           |
-| `source_loader_node`      | 소스·Vault 경로 로딩        | `ipn_agent.legacy.skeleton` | `sources`, `vault_path`         |
-| `obsidian_loader_node`    | 승인 Artifact 로딩        | `ipn_agent.legacy.skeleton` | `raw_articles`                  |
-| `load_sample_node`        | Research fallback     | `ipn_agent.legacy.skeleton` | `raw_articles`, `fallback_used` |
-| `tavily_node`             | Research 보강 (Tavily)  | `ipn_agent.legacy.skeleton` | `raw_articles` 누적               |
-| `analysis_node`           | Analysis Agent (2차)   | `ipn_agent.legacy.skeleton` | `analyzed_articles`             |
-| `hitl_node`               | 편향 항목 HITL            | `ipn_agent.legacy.skeleton` | (선택) `interrupt()`              |
-| `editor_node`             | Editor Agent          | `ipn_agent.legacy.skeleton` | `newsletter` → `draft/` |
+| `obsidian_loader_node`    | 승인 Artifact 로딩        | `ipn_agent.orchestrator.newsletter` | `raw_articles`                  |
+| `analysis_node`           | Editor Assembly — 1차 결과 조립 (**LLM 없음**) | `ipn_agent.orchestrator.newsletter` | `analyzed_articles`             |
+| `standards_linker_node`   | 기사별 표준 맥락 (룰)       | `ipn_agent.orchestrator.newsletter` | `standards_context`           |
+| `hitl_node`               | 편향 항목 표시 (MVP: pass-through) | `ipn_agent.orchestrator.newsletter` | `review_required`               |
+| `editor_node`             | Editor Agent — draft Markdown | `ipn_agent.orchestrator.newsletter` | `newsletter` → `draft/` |
 
 
-> 초기 설계의 단일 `research_node`는 **Research Agent (`fetch_script.py`) + Orchestrator 내 loader/tavily/sample 노드**로 분할 구현했다.
+> 초기 설계의 단일 `research_node`는 **Research Agent (`fetch_script.py`) + Orchestrator editor loader**로 분할 구현했다.
 
 ---
 
@@ -610,41 +565,41 @@ flowchart TB
 | **Published Registry**                 | `ipn_agent.registry.published`        | `registry/published_articles.json`                     |
 | **Tavily Discovery**                   | `ipn_agent.collect.discovery`         | quality gate → `01_raw/expansion/` → `02_review/`      |
 | **Review 메타**                        | `ipn_agent.review.metadata`           | `02_review/` frontmatter 정규화                        |
-| **Standards Linker**                       | `standards_linker_node` (`ipn_agent.legacy.skeleton`) | `ArticleAnalysis.standards_context`        |
-| **Editor subgraph (deprecated)** — `app` | `newsletter_agent_skeleton.py` → `ipn_agent.legacy.skeleton` | `NewsletterState`, `04_newsletter/draft/`  |
+| **Standards Linker**                       | `standards_linker_node` (`ipn_agent.orchestrator.newsletter`) | `ArticleAnalysis.standards_context`        |
+| **Editor draft 파이프라인**                | `ipn_agent.orchestrator.editor` → `newsletter.py` | `04_newsletter/draft/`  |
 | Presentation — Streamlit                 | `streamlit_app.py` + `ipn_agent.ui.streamlit_utils` | ✅ v0.7 5탭 · 통합 HITL · 운영콘솔        |
 | Tool 로깅                                | `ipn_agent.core.tool_logger`               | ✅ `logs/tool_runs.jsonl`                     |
 | MVP 상한                                 | `ipn_agent.core.mvp_limits`                | ✅ `.env` 상한                                 |
 | URL 중복 registry                        | `ipn_agent.registry.article`               | fetch/review 중복 차단                       |
 | Human Agent HITL 유틸                    | `ipn_agent.vault.utils`               | ✅ approve / reject / publish                |
-| Research fallback                        | `data/sample_articles.json`    | `load_sample_node()`                       |
 | Agent 설정                                 | `sources.yaml`                 | Tier·IETF `wg_radar`·`expansion_search`    |
 | Artifact Store 초기화                       | `reset_vault.py` → `ipn_agent.vault.reset` | Vault `--phase`                            |
-| Presentation — Chat UI                   | `langgraph.json`               | ⬜ 미구현                                      |
+| Presentation — Chat UI                   | LangGraph dev + Chat UI        | ⬜ 선택 (Streamlit이 메인)                      |
 
 
 ### 6.1 Pydantic 모델 — Agent 간 데이터 계약
 
 Multi-Agent 간 handoff는 **Pydantic 스키마**로 계약한다.
-Analysis Agent (1차)와 Editor Orchestrator 내 Analysis (2차)는 **역할은 같지만 스키마가 분리**되어 있다.
+Analysis Agent (1차)와 Editor draft 경로의 `analysis_node`는 **역할·스키마가 분리**되어 있다.  
+**편향 LLM 판단은 1차에서만** 수행하고, draft 경로는 1차 frontmatter를 재사용한다.
 
 
 | 모델                 | Agent                                            | 구현 모듈                          |
 | ------------------ | ------------------------------------------------ | ------------------------------ |
 | `ReviewResult`     | Analysis Agent (1차) — 요약·분류·편향·중요도               | `ipn_agent.review.runner`             |
-| `RawArticle`       | Research / Orchestrator loader — 승인·Tavily·샘플 입력 | `ipn_agent.legacy.skeleton` |
-| `ArticleAnalysis`  | Analysis Agent (2차) — 최종 분류·요약·편향                | `ipn_agent.legacy.skeleton` |
-| `NewsletterOutput` | Editor Agent — 뉴스레터 최종본                          | `ipn_agent.legacy.skeleton` |
+| `RawArticle`       | Editor loader — 승인 Artifact 입력 | `ipn_agent.orchestrator.newsletter` |
+| `ArticleAnalysis`  | Editor Assembly — draft용 기사 스키마                | `ipn_agent.orchestrator.newsletter` |
+| `NewsletterOutput` | Editor Agent — 뉴스레터 최종본                          | `ipn_agent.orchestrator.newsletter` |
 
 
 ```
 [Analysis Agent 1차] ipn_agent.review.runner (CLI: review_script.py)
   01_raw/ → ReviewResult → 02_review/*.md
 
-[Editor Orchestrator] ipn_agent.legacy.skeleton (CLI: newsletter_agent_skeleton.py)
-  obsidian_loader / load_sample  →  list[RawArticle]
-  analysis_node                  →  list[ArticleAnalysis]
-  editor_node                    →  NewsletterOutput
+[Editor draft] ipn_agent.orchestrator.editor → ipn_agent.orchestrator.newsletter
+  obsidian_loader / load_approved_from_rel_paths  →  list[RawArticle]
+  analysis_node (LLM 없음 — 1차 bias_risk 재사용)  →  list[ArticleAnalysis]
+  standards_linker → hitl → editor_node           →  NewsletterOutput → draft/
 ```
 
 #### Analysis Agent (1차) — `ipn_agent.review.runner` (`ReviewResult`)
@@ -664,12 +619,13 @@ class ReviewResult(BaseModel):
     topic_tags: list[str]
 ```
 
-#### Editor Orchestrator — `ipn_agent.legacy.skeleton` (Analysis 2차 · Editor)
+#### Editor draft — `ipn_agent.orchestrator.newsletter` (Assembly · Editor)
 
 ```python
-# 파일: ipn_agent/legacy/skeleton.py  (CLI: newsletter_agent_skeleton.py)
+# 파일: ipn_agent/orchestrator/newsletter.py
+# 호출: ipn_agent.orchestrator.editor.generate_newsletter_draft()
 
-# ── obsidian_loader / load_sample / tavily_node 출력 ─────
+# ── obsidian_loader / load_approved_from_rel_paths 출력 ─────
 class RawArticle(BaseModel):
     title: str
     url: str
@@ -706,80 +662,72 @@ class NewsletterOutput(BaseModel):
 
 ### 6.2 LLM-as-Judge (Analysis Agent — 벤더 편향 검토)
 
-편향 검토는 **Analysis Agent (1차·2차)** 에서 각각 수행한다.
+**벤더 편향 LLM 판단은 Analysis Agent (1차)에서만 수행한다.**  
+Editor draft 경로의 `analysis_node`는 2차 LLM 호출을 하지 않고, `03_approved/` frontmatter의 `bias_risk`를 `bias_flag`로 매핑한다.
 
 
-| Agent               | 방식                                 | 구현 모듈                                              | 출력 필드                    |
-| ------------------- | ---------------------------------- | -------------------------------------------------- | ------------------------ |
-| Analysis Agent (1차) | structured output (`ReviewResult`) | `ipn_agent.review.runner`                                 | `bias_risk`, `bias_note` |
-| Analysis Agent (2차) | LLM-as-Judge (`BiasJudge`)         | `ipn_agent.legacy.skeleton` → `analysis_node()` | `bias_flag`, `bias_note` |
+| 단계 | 방식 | 구현 모듈 | 출력 필드 |
+| --- | --- | --- | --- |
+| Analysis Agent (1차) | structured output (`ReviewResult`) — **LLM 편향 판단** | `ipn_agent.review.runner` | `bias_risk`, `bias_note` |
+| Editor Assembly (`analysis_node`) | 1차 결과 재사용 — **LLM 없음** | `ipn_agent.orchestrator.newsletter` | `bias_flag` (`bias_risk` ∈ {medium, high}) |
+| Human Agent (HITL) | 사람 최종 승인/반려 | `streamlit_app.py` + `ipn_agent.vault.utils` | `03_approved/` · `99_rejected/` |
 
 
 ```python
-# 파일: ipn_agent/legacy/skeleton.py  (analysis_node 내부)
+# 1차 — ipn_agent/review/runner.py (REVIEW_PROMPT + ReviewResult)
+class ReviewResult(BaseModel):
+    bias_risk: BiasRisk   # low | medium | high
+    bias_note: str
 
-class BiasJudge(BaseModel):
-    verdict: Literal["vendor_bias", "ok"]
-    evidence: str = ""     # 편향 근거 문구 직접 인용
-    confidence: float      # 0.0 ~ 1.0
-
-# 적용 예 (TODO 활성화 시)
-# bias_result: BiasJudge = llm.with_structured_output(BiasJudge).invoke(...)
-# analysis_result.bias_flag = (
-#     bias_result.verdict == "vendor_bias" and bias_result.confidence >= 0.7
-# )
+# draft assembly — ipn_agent/orchestrator/newsletter.py (analysis_node)
+bias_flag = article.bias_risk in ("medium", "high")  # LLM 재호출 없음
 ```
 
-Analysis Agent (1차)에서는 `ipn_agent.review.runner`의 `REVIEW_PROMPT` + `ReviewResult.bias_risk`로 동일 목적을 처리한다.
+> **향후 고도화 (§20.1):** draft 단계에서 `BiasJudge` LLM-as-Judge를 추가해 1차 결과를 재검증할 수 있다.  
+> MVP에서는 1차 LLM + Human HITL로 충분하며, 중복 LLM 호출·비용·오탐을 피하기 위해 2차 Judge는 구현하지 않았다.
 
-### 6.3 LangGraph State — Editor Orchestrator 공유 State
+### 6.3 Editor draft 내부 State — `ipn_agent.orchestrator.editor`
 
-Editor Orchestrator의 각 노드가 읽고 쓰는 **Multi-Agent 공유 State**다.  
-**구현:** `ipn_agent.legacy.skeleton` — `NewsletterState`, `build_graph()`, `app` (CLI: `newsletter_agent_skeleton.py`)
+Editor draft 생성 시 `generate_newsletter_draft()`가 아래 dict state를 노드 함수에 순차 전달한다.  
+**구현:** `ipn_agent.orchestrator.editor` → `ipn_agent.orchestrator.newsletter`
 
 ```python
-# 파일: ipn_agent/legacy/skeleton.py
-
-class NewsletterState(TypedDict):
-    messages: Annotated[list, add_messages]       # Chat UI 대화 흐름
-    sources: list                                 # source_loader_node ← sources.yaml
-    vault_path: str
-    raw_articles: Annotated[list, operator.add]   # obsidian_loader / load_sample / tavily
-    fallback_used: bool
-    analyzed_articles: list                         # analysis_node
-    bias_count: int                                 # route_after_analysis 조건
-    newsletter: dict                                # editor_node → NewsletterOutput
-    attempt: int
+# generate_newsletter_draft() 내부 state (개념)
+{
+    "vault_path": str,
+    "raw_articles": list,          # obsidian_loader / load_approved_from_rel_paths
+    "analyzed_articles": list,     # analysis_node
+    "bias_count": int,
+    "newsletter": dict,            # editor_node → NewsletterOutput
+    "fallback_used": bool,
+}
 ```
 
-#### 노드·라우팅 구현 위치
+#### 노드 구현 위치
 
 
 | 노드 / 함수                | 구현 모듈                          | 함수명                                                |
 | ---------------------- | ------------------------------ | -------------------------------------------------- |
-| `source_loader_node`   | `ipn_agent.legacy.skeleton` | `source_loader_node()`                             |
-| `obsidian_loader_node` | `ipn_agent.legacy.skeleton` | `obsidian_loader_node()`                           |
-| `load_sample_node`     | `ipn_agent.legacy.skeleton` | `load_sample_node()` ← `data/sample_articles.json` |
-| `tavily_node`          | `ipn_agent.legacy.skeleton` | `tavily_node()`                                    |
-| `analysis_node`        | `ipn_agent.legacy.skeleton` | `analysis_node()`                                  |
-| `hitl_node`            | `ipn_agent.legacy.skeleton` | `hitl_node()`                                      |
-| `standards_linker_node`| `ipn_agent.legacy.skeleton` | `standards_linker_node()`                          |
-| `editor_node`          | `ipn_agent.legacy.skeleton` | `editor_node()` → `_save_newsletter_md()` (draft/) |
-| Obsidian 로딩 후 분기       | `ipn_agent.legacy.skeleton` | `route_after_loader()`                             |
-| Analysis 후 분기          | `ipn_agent.legacy.skeleton` | `route_after_analysis()`                           |
-| 그래프 조립·진입점             | `ipn_agent.legacy.skeleton` | `build_graph()`, `app`                             |
+| `obsidian_loader_node` | `ipn_agent.orchestrator.newsletter` | `obsidian_loader_node()`                           |
+| `load_approved_from_rel_paths` | `ipn_agent.orchestrator.newsletter` | `load_approved_from_rel_paths()`           |
+| `analysis_node`        | `ipn_agent.orchestrator.newsletter` | `analysis_node()`                                  |
+| `standards_linker_node`| `ipn_agent.orchestrator.newsletter` | `standards_linker_node()`                          |
+| `hitl_node`            | `ipn_agent.orchestrator.newsletter` | `hitl_node()`                                      |
+| `editor_node`          | `ipn_agent.orchestrator.newsletter` | `editor_node()` → `_save_newsletter_md()` (draft/) |
+| Editor orchestration   | `ipn_agent.orchestrator.editor` | `prepare_newsletter_context()` · `generate_newsletter_draft()` · `refine_newsletter_draft()` |
 
 
-**State 라우팅 규칙 요약**
+**실행 순서 요약**
 
 
-| 조건                                    | 전환                                               | 구현 파일                                           |
-| ------------------------------------- | ------------------------------------------------ | ----------------------------------------------- |
-| `raw_articles == []` (03_approved 비음) | `obsidian_loader` → `load_sample_node`           | `route_after_loader()`                          |
-| `len(raw_articles) < 5`               | → `tavily_node`                                  | `route_after_loader()`                          |
-| `bias_count > 0`                      | → `hitl_node` → `standards_linker`               | `route_after_analysis()`                        |
-| analysis 후                           | → `standards_linker` → `editor`                  | `standards_linker_node`                         |
-| IETF 문서                               | Analysis Agent (1차) skip → Standards Radar Agent | `review_script.py`, `standards_radar_script.py` |
+| 순서 | 동작 | LLM |
+| --- | --- | --- |
+| 1 | `03_approved/` → `RawArticle` | ❌ |
+| 2 | `analysis_node` — 1차 summary/headline/category 재사용 | ❌ |
+| 3 | `standards_linker_node` — WG 키워드 매칭 | ❌ |
+| 4 | `hitl_node` — 편향 항목 `review_required` 표시 | ❌ |
+| 5 | `editor_node` — 카테고리별 draft Markdown | ❌ |
+| IETF 문서 | Analysis Agent (1차) skip → Standards Radar Agent | `review_script.py`, `standards_radar_script.py` |
 
 
 ### 6.4 디렉토리 구조
@@ -797,8 +745,6 @@ class NewsletterState(TypedDict):
 | `standards_radar_script.py` | `ipn_agent.standards.radar` | Standards Radar Agent |
 | `research_review_agent.py` | `ipn_agent.orchestrator.research_agent` | Collect Orchestrator (레거시) |
 | `reset_vault.py` | `ipn_agent.vault.reset` | Vault 초기화 |
-| `newsletter_agent_skeleton.py` | `ipn_agent.legacy.skeleton` | Editor subgraph (deprecated) |
-| `pipeline_graph.py` | `ipn_agent.orchestrator.workflow` | deprecated wrapper |
 
 #### 프로젝트 트리
 
@@ -811,15 +757,14 @@ mini pjt/
 │
 ├── ipn_agent/                   # 메인 Python 패키지
 │   ├── paths.py                 # PROJECT_DIR (루트 기준 경로)
-│   ├── core/                    # tool_logger, mvp_limits, text_normalize
+│   ├── core/                    # tool_logger, mvp_limits
 │   ├── registry/                # article·published registry
 │   ├── vault/                   # utils (HITL·발행), reset
 │   ├── collect/                 # fetch, extract, discovery (Tavily)
 │   ├── review/                  # runner, metadata, hitl
-│   ├── orchestrator/            # workflow, state, editor, hitl_apply, …
+│   ├── orchestrator/            # workflow, state, editor, newsletter, hitl_apply, …
 │   ├── standards/               # IETF radar
-│   ├── ui/                      # streamlit_utils
-│   └── legacy/                  # skeleton (deprecated Chat UI)
+│   └── ui/                      # streamlit_utils
 │
 ├── fetch_script.py              # CLI wrapper
 ├── review_script.py
@@ -827,12 +772,9 @@ mini pjt/
 ├── research_review_agent.py
 ├── newsletter_orchestrator.py
 ├── reset_vault.py
-├── newsletter_agent_skeleton.py
-├── pipeline_graph.py            # deprecated wrapper
 │
 ├── docs/
 ├── output/pipeline_runs/        # Orchestrator run state·events
-├── data/sample_articles.json
 ├── logs/tool_runs.jsonl
 ├── vault/
 │   ├── 00_discovery/candidates/
@@ -882,12 +824,12 @@ RSS 수집 → 본문 추출 → 요약 → 화면 출력
 
 ```
 Research Agent        → 어떤 소스를 수집할 것인가? 실패 시 fallback?
-Analysis Agent (1차)  → 카테고리·요약·편향·중요도?
+Analysis Agent (1차)  → 카테고리·요약·편향·중요도? (LLM)
 Human Agent (HITL)    → 뉴스레터 포함 여부?
 Standards Radar Agent → IETF 표준 변화 신호?
-Analysis Agent (2차)  → 승인 기사 재분류·Judge?
+Editor Assembly       → 승인 기사 draft 조립? (1차 결과 재사용, LLM 없음)
 Editor Agent          → 포함/제외·카테고리별 편집?
-Editor Orchestrator   → fallback·보강·conditional routing
+Newsletter Orchestrator → collect~draft 실행·상태 추적
 ```
 
 > **중요:** `fetch_script.py` / `review_script.py`는 레거시 ETL이 아니라  
@@ -900,10 +842,10 @@ Editor Orchestrator   → fallback·보강·conditional routing
 | 구분     | 단순 Pipeline | **본 과제 Multi-Agent**                       |
 | ------ | ----------- | ------------------------------------------ |
 | 처리 방식  | 고정 순차 처리    | **Agent별 역할·판단 기준 분리**                     |
-| 벤더 편향  | 별도 후처리      | **Analysis Agent + LLM-as-Judge**          |
+| 벤더 편향  | 별도 후처리      | **Analysis Agent (1차) LLM + Human HITL**          |
 | 사람 검수  | UI 외부       | **Human Agent (HITL) — Vault handoff**     |
 | 표준 동향  | 뉴스와 혼재      | **Standards Radar Agent (IETF 전용)**        |
-| 예외 처리  | 실패 시 중단     | **Editor Orchestrator fallback·Tavily 보강** |
+| 예외 처리  | 실패 시 중단     | **Orchestrator checkpoint · approved 0건 시 draft 스킵** |
 | 확장성    | 단계 추가 시 복잡  | **Agent 단위 추가·교체**                         |
 | 발표 적합성 | 자동화 흐름      | **Multi-Agent 역할·Artifact Store 설명**       |
 
@@ -1016,6 +958,98 @@ Analysis Agent (1차)에서 `review_mode: standards_signal` → skip.
 
 **최소 동작 조합:** `apnic_blog` + `sample_articles.json` fallback + Streamlit/Chat UI
 
+### 10.3 IETF Radar (Standards Radar Agent) — 역할 정의
+
+> **명칭:** UI·문서에서는 **IETF Radar**, Agent·코드에서는 **Standards Radar Agent** (`standards_radar_script.py` → `ipn_agent.standards.radar`)로 부른다.
+
+#### 한 줄 정의
+
+**IETF Datatracker API에서 추적 중인 WG(Working Group)의 최신 표준화 신호를 수집·요약해, 뉴스 기사와 분리된 “표준화 컨텍스트” 산출물(`ietf_radar.md`)을 만드는 전용 Agent**이다.
+
+#### IETF Radar가 하는 일 ✅
+
+| 구분 | 내용 |
+|------|------|
+| **수집** | `ietf_datatracker` reference 소스 — Datatracker REST API, WG 5개(`idr`, `bess`, `lsr`, `spring`, `grow`) |
+| **저장** | `vault/01_raw/ietf_datatracker/*.md` — 문서 abstract·메타만 (agenda/minutes/slides 제외) |
+| **가공** | Standards Radar Agent — WG별 최신 1건 선별, 2년(`max_article_age_days: 730`) 이내 필터 |
+| **산출** | `vault/04_newsletter/ietf_radar.md` — WG별 기술 영역·변화 의미·최신 참고 문서·요약표 |
+| **실행 시점** | Collect Orchestrator / Newsletter Orchestrator `collect` 단계에서 **기사 수집·리뷰와 병렬** 자동 실행 |
+| **참고 용도** | HITL 검수 시 “이 기사가 어떤 표준 논의와 연결되는지” 판단 참고 |
+| **뉴스레터 연계** | **Standards Linker**(`standards_linker_node`)가 승인 기사 키워드와 WG 의미를 **룰 매칭**(LLM 없음) → 기사별 `standards_context` |
+
+#### IETF Radar가 하지 않는 일 ❌
+
+| 구분 | 이유 |
+|------|------|
+| **일반 뉴스 기사로 취급** | `review_mode: standards_signal` — Analysis Agent (1차) `review_script` **skip** |
+| **HITL 승인/반려 대상** | `role: standards_context` — 기사 검토 큐(`02_review/`)에 올라오지 않음 |
+| **뉴스레터 본문에 Radar 전체 삽입** | v0.3 이후 `ietf_radar.md` append 제거 — draft에는 **기사별 관련 맥락만** |
+| **LLM 분석·요약** | Radar 생성·Linker 모두 **룰·설정 기반** (`sources.yaml` `wg_radar`, `WG_CONTEXT`) |
+| **기본 Collect 소스** | `collect_by_default: false` — Orchestrator가 collect 시 자동 포함하거나 `--source ietf_datatracker`로 단독 실행 |
+
+#### 파이프라인 (End-to-End)
+
+```
+sources.yaml (ietf_datatracker, wg_filter, wg_radar)
+        │
+        ▼
+Research Agent — fetch_script.py --source ietf_datatracker
+  · ipn_agent.collect.fetch.collect_api()
+  · WG당 최신 Internet-Draft/RFC 1건 × 5 WG
+        │
+        ▼
+vault/01_raw/ietf_datatracker/{doc_name}.md
+  · frontmatter: wg, doc_name, maturity, review_mode=standards_signal
+        │
+        ▼
+Standards Radar Agent — standards_radar_script.py
+  · load_ietf_signals() → filter_by_age() → pick_latest_per_wg()
+  · build_radar_markdown() + WG_CONTEXT 병합
+        │
+        ▼
+vault/04_newsletter/ietf_radar.md          ← IETF Radar 산출물
+        │
+        ├─► Streamlit 운영콘솔 — Radar 전체 Preview · 재실행
+        ├─► 기사 검토 expander — WG compact 요약 (HITL 참고)
+        │
+        └─► (draft 생성 시) Standards Linker — 승인 기사별 standards_context만 draft에 반영
+```
+
+#### Standards Radar Agent vs Standards Linker
+
+| | **Standards Radar Agent** | **Standards Linker** |
+|---|---------------------------|----------------------|
+| **역할** | IETF 표준 **신호 수집·레이더 MD 생성** | 승인 **기사별** 표준 맥락 **연결** |
+| **입력** | `01_raw/ietf_datatracker/` | `03_approved/` 기사 + `wg_radar` 설정 |
+| **출력** | `ietf_radar.md` (전체 컨텍스트) | `ArticleAnalysis.standards_context` (0~N줄) |
+| **LLM** | ❌ | ❌ |
+| **실행** | collect 단계 (subprocess) | draft `editor_generate` 내부 node |
+
+Radar는 **“지금 IETF에서 무엇이 움직이는가”**를 담고, Linker는 **“이번 뉴스레터 기사가 그중 무엇과 관련 있는가”**만 골라 draft 카드에 붙인다.
+
+#### 추적 WG (MVP)
+
+| WG | 라벨 | 연결 카테고리 (예) |
+|----|------|-------------------|
+| `idr` | IDR / BGP | Routing/Internet Operations, IP Security |
+| `bess` | BESS / EVPN | DataCenter Network, Backbone/Backhaul |
+| `lsr` | LSR / IGP | Routing/Internet Operations, Backbone/Backhaul |
+| `spring` | SPRING / Segment Routing | Backbone/Backhaul, Transport/DCI |
+| `grow` | GROW / Routing Ops | Routing/Internet Operations |
+
+WG별 `change_meaning`·`tech_area`는 `sources.yaml` → `wg_radar`에서 관리한다.
+
+#### 수동 실행 (디버그·재생성)
+
+```bash
+python fetch_script.py --source ietf_datatracker   # 01_raw 신호 갱신
+python standards_radar_script.py                   # ietf_radar.md 생성
+python standards_radar_script.py --dry-run         # 저장 없이 미리보기
+```
+
+Streamlit **운영콘솔** 탭의 **▶ IETF Radar 재실행** 버튼은 `standards_radar_script.py`를 호출한다 (fetch는 Collect 실행 시 함께 수행).
+
 ---
 
 ## 11. Streamlit 프론트엔드 v0.7 (`streamlit_app.py`)
@@ -1064,12 +1098,14 @@ streamlit run streamlit_app.py
 - Newsletter: `Draft N · Published M`
 - MVP 상한 (`.env`) · Last Run · Recent Tool (`logs/tool_runs.jsonl`)
 
-### 11.5 IETF 표준 맥락 노출 정책
+### 11.5 IETF Radar — UI 노출 정책
+
+> IETF Radar Agent의 역할·파이프라인·Linker와의 차이: [§10.3 IETF Radar 역할 정의](#103-ietf-radar-standards-radar-agent--역할-정의)
 
 | 위치 | 내용 |
 |------|------|
-| **운영콘솔** 탭 | `ietf_radar.md` **전체** · WG 컨텍스트 |
-| 기사 검토 expander | WG compact 요약 (검수 참고) |
+| **운영콘솔** 탭 | `ietf_radar.md` **전체** · WG 컨텍스트 · 재실행 버튼 |
+| 기사 검토 expander | WG compact 요약 (HITL 검수 참고, 승인 대상 아님) |
 | Newsletter draft/published | 기사별 **관련 표준 맥락**만 (`standards_linker_node`) |
 | Newsletter 본문 | Radar 전체 목록 **미포함** |
 
@@ -1131,17 +1167,9 @@ pnpm dev
 # → http://localhost:3000
 ```
 
-`langgraph.json` 등록 (예정):
+`langgraph.json` + Chat UI는 **선택 구현**이다. MVP 메인 경로는 Streamlit + `newsletter_orchestrator.py`이다.
 
-```json
-{
-  "graphs": {
-    "newsletter_agent": "./newsletter_agent_skeleton.py:app"
-  }
-}
-```
-
-> **현재:** `newsletter_agent_skeleton.py`에 `app` 객체 존재. Chat UI 연결은 **최종 산출물** 작업.
+> **v0.8:** deprecated Editor subgraph(`newsletter_agent_skeleton.py`) 제거. draft는 Orchestrator editor node가 담당한다.
 
 ---
 
@@ -1152,7 +1180,7 @@ pnpm dev
 | --- | ----------------------- | ----------------------------------------- | ------------------------------------------------------------- |
 | 1   | IP Network와 무관한 문서가 들어옴 | `"Other"` 카테고리로 분류 후 Editor에서 제외 또는 별도 표시 | `ArticleAnalysis.category`에 `"Other"` 추가                      |
 | 2   | 벤더 홍보성 문구가 포함됨          | 기술적 사실과 마케팅 표현을 분리하고 검증 필요로 표시            | `bias_flag=True`, `bias_note`에 근거 인용                          |
-| 3   | RSS/URL 수집 전체 실패        | 샘플 데이터로 동일한 흐름 수행, UI에 fallback 여부 표시     | `NewsletterOutput.fallback_used=True` 메타 필드 → Streamlit 상단 표시 |
+| 3   | RSS/URL 수집 전체 실패        | draft 생성 스킵, UI에 기사 0건 표시     | Orchestrator `editor_prepare` → 컨텍스트 None |
 
 
 ---
@@ -1163,11 +1191,11 @@ pnpm dev
 | 패턴                           | Day       | 적용 방식                                                                               | 구현 위치                              |
 | ---------------------------- | --------- | ----------------------------------------------------------------------------------- | ---------------------------------- |
 | LCEL / Structured Output     | Day 1, 3  | `RawArticle` → `ArticleAnalysis` → `NewsletterOutput` Pydantic 모델로 구조화              | 각 LangGraph 노드 출력                  |
-| RAG 또는 문서 검색                 | Day 2     | 로컬 샘플 문서 로드 및 fallback 처리                                                           | `load_sample_node`                 |
-| 도구 다중 호출                     | Day 3     | Research Agent + Orchestrator `tavily_node`                                         | `fetch_script.py` + LangGraph      |
-| HITL                         | Day 4     | **Human Agent — Streamlit Admin** (`02_review` → `03_approved`); Orchestrator `hitl_node` 선택 | **`streamlit_app.py`** + LangGraph |
-| **Multi-Agent (StateGraph)** | **Day 5** | **Editor Orchestrator — Analysis (2차) → Editor, conditional_edge**                  | `**newsletter_agent_skeleton.py`** |
-| LLM-as-Judge                 | Day 7     | **Analysis Agent** 벤더 편향 검토 — 필수                                                    | `analysis_node` / `review_script`  |
+| RAG 또는 문서 검색                 | Day 2     | Vault approved Markdown 로드                                                           | `obsidian_loader_node`                 |
+| 도구 다중 호출                     | Day 3     | Research Agent + Tavily Discovery                                         | `fetch_script.py` + Orchestrator      |
+| HITL                         | Day 4     | **Human Agent — Streamlit** (`02_review` → `03_approved`); Orchestrator `hitl_node` 표시 | **`streamlit_app.py`** + editor       |
+| **Multi-Agent (StateGraph)** | **Day 5** | **Newsletter Orchestrator — collect~draft, editor node 3분할**                  | `newsletter_orchestrator.py` |
+| LLM-as-Judge                 | Day 7     | **Analysis Agent (1차)** 벤더 편향 검토 — 필수                                    | `review_script.py` / `ReviewResult.bias_risk`  |
 
 
 ---
@@ -1199,7 +1227,7 @@ pnpm dev
 
 | 순서   | 기능                        | 상태                                 |
 | ---- | ------------------------- | ---------------------------------- |
-| 사전 A | StateGraph 스켈레톤           | ✅ `newsletter_agent_skeleton.py`   |
+| 사전 A | StateGraph 스켈레톤           | ✅ `newsletter_orchestrator.py`   |
 | 사전 B | 소스 수집 테스트                 | ✅ `sources_checklist.md`           |
 | 사전 C | Research · Analysis Agent | ✅ `fetch_script` · `review_script` |
 | 사전 D | Standards Radar Agent     | ✅ `standards_radar_script`         |
@@ -1247,7 +1275,6 @@ pnpm dev
 | `standards_radar_script.py`    | 필수     | ✅   | Standards Radar Agent (CLI wrapper) |
 | `newsletter_orchestrator.py`   | 필수     | ✅   | Newsletter Orchestrator (CLI wrapper) |
 | `reset_vault.py`               | 선택     | ✅   | Artifact Store 초기화 (CLI wrapper) |
-| `newsletter_agent_skeleton.py` | 필수     | 🟡  | Editor subgraph (CLI wrapper, deprecated) |
 | `sources.yaml`                 | 필수     | ✅   | 소스·카테고리 설정                |
 | `sources_checklist.md`         | 필수     | ✅   | [docs/sources-checklist.md](./sources-checklist.md) |
 | **`docs/`**                    | 필수     | ✅   | 명세·아키텍처·changelog                         |
@@ -1292,16 +1319,16 @@ pnpm dev
 | ------------------------- | --------------------------------------------------------------------------- |
 | Multi-Agent 구조            | Research · Analysis · Human · Standards Radar · Editor Agent + Orchestrator |
 | 제한적 수집                    | Research Agent (`fetch_script.py`) — RSS/API/blog_index 1건 이상               |
-| Fallback                  | Editor Orchestrator `load_sample_node` + `sample_articles.json`             |
-| 분류·요약                     | Analysis Agent (1차·2차) — `review_script` + `analysis_node`                  |
-| 벤더 검증                     | Analysis Agent + LLM-as-Judge + Human Agent (HITL)                          |
+| Fallback                  | approved 0건 시 draft 스킵 (샘플 fallback 제거)             |
+| 분류·요약                     | Analysis Agent (1차) — `review_script`; draft는 1차 결과 조립  |
+| 벤더 검증                     | Analysis Agent (1차) LLM + Human Agent (HITL)                          |
 | **Standards Linker**      | `standards_linker_node` 룰 기반 기사별 맥락                           |
 | **Newsletter Orchestrator** | **`newsletter_orchestrator.py` collect~draft + editor node 3분할** ✅ |
 | **Threshold HITL**        | score 기반 큐 + 자동 rejected ✅                             |
 | **Published registry**    | hash 이중 차단 + 발행 등록 ✅                                |
 | **Streamlit v0.6**        | **6탭 + Orchestrator + threshold HITL** ✅                  |
 | **docs/**                 | 프로젝트 문서 체계 ✅                                                  |
-| **Chat UI**               | **구현 필요** — Editor Orchestrator 대화형 invoke                         |
+| **Chat UI**               | **선택** — Streamlit Orchestrator가 메인 경로                         |
 | README                    | Multi-Agent 실행 방법·Artifact Store 1페이지 정리                                    |
 
 
@@ -1356,11 +1383,10 @@ Multi-Agent 구성 (v0.7)
   Tavily Discovery        ipn_agent.collect.discovery → 01_raw/expansion/ → 02_review/
   Human Agent (HITL)      streamlit_app.py + ipn_agent.vault.utils → 03_approved/ · 99_rejected/
   Standards Radar Agent   standards_radar_script.py → ipn_agent.standards.radar → ietf_radar.md
-  Standards Linker        standards_linker_node (ipn_agent.legacy.skeleton) → standards_context
+  Standards Linker        standards_linker_node (ipn_agent.orchestrator.newsletter) → standards_context
 
-  Editor subgraph (deprecated)  newsletter_agent_skeleton.py → ipn_agent.legacy.skeleton
-    obsidian_loader → [load_sample | tavily] → analysis → [hitl]
-      → standards_linker → editor → draft/  (Chat UI 전용)
+  Editor draft            ipn_agent.orchestrator.editor → newsletter.py
+    obsidian_loader → analysis (1차 재사용) → standards_linker → hitl → editor → draft/
     Human 발행 확정 → published/ + registry/
 
   Python 패키지: ipn_agent/ (역할별 서브패키지, CLI wrapper 유지)
