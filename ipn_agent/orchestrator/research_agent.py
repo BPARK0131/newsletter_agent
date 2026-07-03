@@ -9,7 +9,8 @@ Collect & Analyze Orchestrator
 
 from __future__ import annotations
 
-from ipn_agent.paths import PROJECT_DIR
+from ipn_agent.paths import PROJECT_DIR, ensure_vault_path_env
+from ipn_agent.vault.utils import get_vault_path
 
 import argparse
 import os
@@ -20,6 +21,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv()
+ensure_vault_path_env()
 
 if hasattr(sys.stdout, "reconfigure"):
     try:
@@ -65,10 +67,7 @@ def run(
     expansion_only: bool = False,
     expansion_categories: list[str] | None = None,
 ) -> int:
-    vault = os.environ.get("OBSIDIAN_VAULT_PATH", "")
-    if not vault:
-        print("[ERROR] OBSIDIAN_VAULT_PATH 환경변수 미설정")
-        return 1
+    vault = str(get_vault_path())
 
     if expansion_only:
         print("[INFO] Collect & Analyze — Expansion-only (Tavily 웹 검색)")

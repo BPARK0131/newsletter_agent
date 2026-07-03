@@ -18,9 +18,12 @@ from pathlib import Path
 from typing import Literal
 
 from dotenv import load_dotenv
+
+from ipn_agent.paths import ensure_vault_path_env
 from langgraph.graph import END, START, StateGraph
 
 load_dotenv()
+ensure_vault_path_env()
 
 if hasattr(sys.stdout, "reconfigure"):
     try:
@@ -586,9 +589,7 @@ if __name__ == "__main__":
     parser.add_argument("--force-editor", action="store_true")
     args = parser.parse_args()
 
-    if not os.environ.get("OBSIDIAN_VAULT_PATH", "").strip():
-        print("[ERROR] OBSIDIAN_VAULT_PATH 미설정")
-        sys.exit(1)
+    ensure_vault_path_env()
 
     src = (
         [s.strip() for s in args.sources.split(",") if s.strip()]

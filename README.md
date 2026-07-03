@@ -61,7 +61,7 @@ pip install -r requirements.txt
 
 ```env
 OPENAI_API_KEY=sk-...
-OBSIDIAN_VAULT_PATH=C:/Users/USER/Desktop/bpark/mini pjt/vault
+# OBSIDIAN_VAULT_PATH=...   # 선택 — 미설정 시 프로젝트 vault/ 자동 사용
 # TAVILY_API_KEY=tvly-...   # 선택
 ```
 

@@ -497,6 +497,7 @@ expansion_search:
     - ietf.org
     - facebook.com
     - fb.com
+    - instagram.com
 
   blocked_url_patterns:
     - /wiki/

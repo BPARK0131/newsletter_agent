@@ -5,7 +5,7 @@ Streamlit HITL · Agent 스크립트에서 공유
 
 from __future__ import annotations
 
-from ipn_agent.paths import PROJECT_DIR
+from ipn_agent.paths import PROJECT_DIR, resolve_vault_path
 
 import json
 import os
@@ -83,10 +83,7 @@ def build_expansion_picker_sources(
 
 
 def get_vault_path() -> Path:
-    env = os.environ.get("OBSIDIAN_VAULT_PATH", "").strip()
-    if env:
-        return Path(env)
-    default = PROJECT_DIR / "vault"
+    default = resolve_vault_path()
     default.mkdir(parents=True, exist_ok=True)
     for sub in ("01_raw", "02_review", "03_approved", "04_newsletter", "99_rejected", "registry"):
         (default / sub).mkdir(parents=True, exist_ok=True)
@@ -217,6 +214,11 @@ def list_review_items(vault: Path | None = None) -> list[dict[str, Any]]:
 
     items: list[dict[str, Any]] = []
     for md in sorted(review_dir.glob("*.md")):
+        if md.name == ".gitkeep":
+            continue
+        # 03_approved / 99_rejected 에 이미 있으면 02_review 잔존 복본(ghost) — UI 제외
+        if (v / "03_approved" / md.name).is_file() or (v / "99_rejected" / md.name).is_file():
+            continue
         try:
             meta, body = read_md(md)
             sections = parse_review_body(body)
@@ -590,7 +592,8 @@ def approve_review(filename: str, vault: Path | None = None) -> tuple[bool, str]
     dst = dst_dir / filename
 
     if dst.exists():
-        return False, f"이미 승인됨: {filename}"
+        src.unlink()
+        return True, f"검토 큐 정리 완료 (이미 03_approved/{filename})"
 
     text = src.read_text(encoding="utf-8")
     meta, body = parse_frontmatter(text)
@@ -614,7 +617,8 @@ def reject_review(filename: str, vault: Path | None = None) -> tuple[bool, str]:
     dst = dst_dir / filename
 
     if dst.exists():
-        return False, f"이미 반려됨: {filename}"
+        src.unlink()
+        return True, f"반려 완료 → 99_rejected/{filename} (검토 큐 중복 제거)"
 
     text = src.read_text(encoding="utf-8")
     meta, body = parse_frontmatter(text)

@@ -51,6 +51,7 @@ def apply_threshold_routing_to_vault(
             dst = rejected_dir / md.name
             if not dst.exists():
                 dst.write_text(build_frontmatter(meta, body), encoding="utf-8")
+            if md.is_file():
                 md.unlink()
             continue
 

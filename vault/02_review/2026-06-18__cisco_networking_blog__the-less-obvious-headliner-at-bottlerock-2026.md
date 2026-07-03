@@ -9,21 +9,25 @@ domain: blogs.cisco.com
 trust_level: low
 category: DataCenter Network
 status: review
-bias_risk: medium
-bias_note: Cisco와 Splunk의 솔루션 효과를 강조하는 벤더 홍보 성격이 강하며, 수치 제시는 있으나 성과 해석이 마케팅 중심이다.
+bias_risk: high
+bias_note: 원문은 Cisco 블로그로 제품(Cisco CW9179, Meraki)과 파트너(Splunk)를 반복해 홍보하며 구현 사례를 마케팅
+  관점에서 강조함. 기술 통계는 제공되지만 상업적 목적의 과장·선택적 서술이 섞여 있음.
 published_at: Thu, 18 Ju
-collected_at: '2026-07-02'
-reviewed_at: '2026-07-02'
-importance_score: 3
-review_score: 0.6
+collected_at: '2026-07-03'
+reviewed_at: '2026-07-03'
+importance_score: 4
+review_score: 0.8
 hitl_route: needs_human_review
 topic_tags:
 - wifi7
+- wifi
 - 6ghz
-- wireless
+- meraki
+- splunk
+- cw9179
+- digital_resilience
 - observability
-- wan
-- telemetry
+- networking
 recollect_required: false
 review_required: true
 is_published: false
@@ -31,19 +35,18 @@ is_published: false
 
 # 요약
 
-BottleRock 2026 현장에서 Cisco는 Wi‑Fi 7 기반 무선망과 WAN, 위치/인프라를 제공했고, Splunk는 관련 머신 데이터를 실시간 분석해 운영 가시성을 높였다고 설명한다. 행사 기간 동안 475개 AP가 운영됐고, 3일간 58,380명의 고유 Wi‑Fi 클라이언트를 수용했다. 6 GHz 대역은 전체 클라이언트의 48.3%가 사용했으며, 야외 표준 전력 환경에서 Wi‑Fi 7이 활용됐다. 또한 듀얼 WAN 회선을 통해 58.69TB의 트래픽이 전송됐다고 제시한다.
+BottleRock 2026 페스티벌에서는 475개의 액세스포인트로 3일간 58,380명의 고유 Wi‑Fi 클라이언트를 처리했고 피크 동시 접속은 20,968명이었다. 총 트래픽은 58.69 TB였고 전체의 48.3%가 6 GHz 대역(표준 출력, 야외)으로 접속해 Wi‑Fi 7 채택이 전년 대비 크게 늘었다. Cisco 인프라와 Splunk 대시보드를 연계해 실시간 관찰성과 운영 중심의 '디지털 레질리언스'를 구현했다고 보고함.
 
 # 핵심 포인트
 
-- 행사장에 475개 액세스 포인트를 배치해 무선 서비스를 제공
-- 3일간 58,380개 고유 Wi‑Fi 클라이언트를 처리하고 최대 동시 접속 20,968명을 기록
-- 클라이언트의 48.3%가 6 GHz 대역에 연결됐으며 야외 표준 전력 환경에서 Wi‑Fi 7이 사용됨
-- 듀얼 WAN 회선을 통해 58.69TB의 트래픽을 처리했다고 설명
-- Splunk 대시보드로 Wi‑Fi, WAN, UPS 텔레메트리를 통합 관측했다고 언급
+- 행사 규모: 475 AP, 58,380 유니크 Wi‑Fi 클라이언트, 최대 동시 접속 20,968, 총 트래픽 58.69 TB
+- 6 GHz 사용률 급증: 전체 클라이언트의 48.3%가 6 GHz에 연결(전년 11.3% 대비 대폭 증가), Wi‑Fi 7 실사용 사례로 적용
+- 운영 관점 통합: Cisco 무선·WAN·인프라 메트릭과 UPS·기상 등 텔레메트리를 Splunk 대시보드로 집계해 실시간 가시화 및 대응
+- 설계 견고성: 이중 WAN 회선, 표준 출력의 야외 Wi‑Fi 7 운영 등 고밀도 환경에서의 설계가 일관되게 동작했다고 보고
 
 # 뉴스레터 헤드라인
 
-BottleRock 2026 Wi-Fi 7과 6 GHz 운영 결과
+Wi‑Fi 7 6 GHz Cisco Splunk Observability
 
 # 원문 링크
 

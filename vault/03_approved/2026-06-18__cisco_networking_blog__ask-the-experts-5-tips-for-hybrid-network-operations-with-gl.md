@@ -8,7 +8,7 @@ origin: curated_source
 domain: blogs.cisco.com
 trust_level: low
 category: DataCenter Network
-status: review
+status: approved
 bias_risk: medium
 bias_note: Cisco 제품과 향후 로드맵(Global Overview, Cisco Cloud Control)을 강조하는 구성으로 벤더 홍보
   성격이 있다.
@@ -27,6 +27,8 @@ topic_tags:
 recollect_required: false
 review_required: true
 is_published: false
+pipeline_status: approved
+approved_at: '2026-07-03'
 ---
 
 # 요약

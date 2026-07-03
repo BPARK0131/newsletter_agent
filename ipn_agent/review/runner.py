@@ -45,7 +45,12 @@ from datetime import datetime
 from pathlib import Path
 
 from dotenv import load_dotenv
+
+from ipn_agent.paths import ensure_vault_path_env
+from ipn_agent.vault.utils import get_vault_path
+
 load_dotenv()
+ensure_vault_path_env()
 
 # Windows 터미널/Streamlit subprocess — 특수 유니코드 출력 오류 방지
 if hasattr(sys.stdout, "reconfigure"):
@@ -60,7 +65,8 @@ from ipn_agent.core.mvp_limits import mvp_limits_summary
 from ipn_agent.registry.article import url_blocks_review
 from ipn_agent.collect.extract import recollect_article_content, score_content, is_thin_content
 
-from langchain_openai import ChatOpenAI
+from ipn_agent.core.openai_chat_llm import create_review_chat_openai
+from langchain_core.messages import HumanMessage
 from pydantic import BaseModel, Field
 from typing import Literal
 
@@ -153,10 +159,7 @@ _reviewer = None
 def get_reviewer():
     global _reviewer
     if _reviewer is None:
-        llm = ChatOpenAI(
-            model=os.environ.get("OPENAI_MODEL_PRIMARY", "gpt-4o-mini"),
-            temperature=0,
-        )
+        llm = create_review_chat_openai()
         _reviewer = llm.with_structured_output(ReviewResult)
     return _reviewer
 
@@ -383,13 +386,12 @@ def try_recollect_raw_body(
 
 
 def _run_llm_review(title: str, meta: dict, body: str) -> ReviewResult:
-    return finalize_review_result(get_reviewer().invoke(
-        REVIEW_PROMPT.format(
-            title=title,
-            source_name=meta.get("source_name", ""),
-            content=compact_content(body),
-        )
-    ))
+    prompt = REVIEW_PROMPT.format(
+        title=title,
+        source_name=meta.get("source_name", ""),
+        content=compact_content(body),
+    )
+    return finalize_review_result(get_reviewer().invoke([HumanMessage(content=prompt)]))
 
 
 def build_review_markdown(meta: dict, result: ReviewResult, md_file: Path, body: str = "") -> str:
@@ -621,10 +623,7 @@ def process_file(md_file: Path, vault_path: str, dry_run: bool, force: bool = Fa
 
 
 def run(target_file: str | None = None, dry_run: bool = False, force: bool = False) -> None:
-    vault_path = os.environ.get("OBSIDIAN_VAULT_PATH", "")
-    if not vault_path:
-        print("[ERROR] OBSIDIAN_VAULT_PATH 환경변수 미설정")
-        sys.exit(1)
+    vault_path = str(get_vault_path())
 
     raw_root = Path(vault_path) / "01_raw"
     if not raw_root.exists():

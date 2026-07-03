@@ -50,9 +50,14 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from dotenv import load_dotenv
-load_dotenv()
 
-from ipn_agent.core.tool_logger import log_tool_event
+from ipn_agent.paths import PROJECT_DIR, ensure_vault_path_env
+from ipn_agent.registry.article import find_url_in_vault
+from ipn_agent.collect.extract import fetch_article_content, recollect_article_content, score_content
+from ipn_agent.vault.utils import get_vault_path
+
+load_dotenv()
+ensure_vault_path_env()
 from ipn_agent.core.mvp_limits import apply_mvp_source_caps, mvp_limits_summary
 
 
@@ -84,9 +89,8 @@ def _emit_collect_progress(
         target=name,
         count=count,
     )
-from ipn_agent.paths import PROJECT_DIR
-from ipn_agent.registry.article import find_url_in_vault
-from ipn_agent.collect.extract import fetch_article_content, recollect_article_content, score_content
+from ipn_agent.core.tool_logger import log_tool_event
+from ipn_agent.core.mvp_limits import apply_mvp_source_caps, mvp_limits_summary
 
 # Windows 터미널 인코딩 - 특수 유니코드 문자(non-breaking hyphen 등)를 ? 로 대체
 if hasattr(sys.stdout, 'reconfigure'):
@@ -282,6 +286,23 @@ _DISCOVERY_STOP_WORDS = frozenset({
     "the", "and", "for", "with", "from", "network", "networks", "2026", "2025",
 })
 
+# 모든 Tavily 검색(expansion · tavily_search) 공통 제외 도메인
+_BASE_SEARCH_EXCLUDE_DOMAINS: tuple[str, ...] = (
+    "instagram.com",
+)
+
+_EXPANSION_SEARCH_CFG: dict | None = None
+
+
+def _load_expansion_search_cfg() -> dict:
+    global _EXPANSION_SEARCH_CFG
+    if _EXPANSION_SEARCH_CFG is None:
+        config_path = PROJECT_DIR / "sources.yaml"
+        with open(config_path, encoding="utf-8") as f:
+            config = yaml.safe_load(f) or {}
+        _EXPANSION_SEARCH_CFG = config.get("expansion_search", {}) or {}
+    return _EXPANSION_SEARCH_CFG
+
 
 def _host_matches_domain(host: str, domain: str) -> bool:
     d = domain.lower().lstrip(".")
@@ -296,6 +317,11 @@ def _domain_in_trusted_list(host: str, domains: list[str]) -> bool:
 def _discovery_exclude_domains(es_cfg: dict) -> list[str]:
     seen: set[str] = set()
     out: list[str] = []
+    for dom in _BASE_SEARCH_EXCLUDE_DOMAINS:
+        d = dom.lower().lstrip(".")
+        if d and d not in seen:
+            seen.add(d)
+            out.append(d)
     for key in ("default_exclude_domains", "exclude_domains"):
         for dom in es_cfg.get(key, []) or []:
             d = dom.lower().lstrip(".")
@@ -1269,9 +1295,13 @@ def collect_tavily(src: dict, vault_path: str, dry_run: bool) -> int:
     topic = src.get("tavily_topic") or src.get("topic") or "news"
     time_range = src.get("tavily_time_range") or src.get("time_range") or "month"
     max_age_days = int(src.get("max_article_age_days") or 45)
-    excl = _discovery_exclude_domains({})  # source-level: no es_cfg; skip exclude unless in src
+    es_cfg = _load_expansion_search_cfg()
+    excl = _discovery_exclude_domains(es_cfg)
     if src.get("exclude_domains"):
-        excl = list(src.get("exclude_domains") or [])
+        for dom in src.get("exclude_domains") or []:
+            d = str(dom).lower().lstrip(".")
+            if d and d not in excl:
+                excl.append(d)
     log_tool_event(
         "research", "tavily_search", "running",
         f"Tavily 검색: {query} (topic={topic}, range={time_range})", target=source_id,
@@ -1303,6 +1333,11 @@ def collect_tavily(src: dict, vault_path: str, dry_run: bool) -> int:
         url   = item.get("url", "")
         title = item.get("title", "untitled")
         if not url:
+            continue
+
+        blocked, block_reason = _expansion_url_blocked(url, title, es_cfg)
+        if blocked:
+            print(f"  [FILTER] {block_reason}: {url[:70]}")
             continue
 
         # URL 필터 검사
@@ -1640,10 +1675,7 @@ def load_all_sources(config: dict) -> list[dict]:
 
 
 def run(target_source: str | None = None, dry_run: bool = False) -> None:
-    vault_path = os.environ.get("OBSIDIAN_VAULT_PATH", "")
-    if not vault_path and not dry_run:
-        print("[ERROR] OBSIDIAN_VAULT_PATH 환경변수 미설정. .env 파일을 확인하세요.")
-        sys.exit(1)
+    vault_path = str(get_vault_path())
 
     config_path = PROJECT_DIR / "sources.yaml"
     with open(config_path, encoding="utf-8") as f:
@@ -1726,10 +1758,7 @@ if __name__ == "__main__":
 
     if args.expansion_search:
         # 확장 검색 단독 실행
-        vault_path = os.environ.get("OBSIDIAN_VAULT_PATH", "")
-        if not vault_path and not args.dry_run:
-            print("[ERROR] OBSIDIAN_VAULT_PATH 환경변수 미설정.")
-            sys.exit(1)
+        vault_path = str(get_vault_path())
         config_path = PROJECT_DIR / "sources.yaml"
         with open(config_path, encoding="utf-8") as f:
             config = yaml.safe_load(f)

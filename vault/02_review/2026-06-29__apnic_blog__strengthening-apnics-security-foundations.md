@@ -9,42 +9,44 @@ domain: blog.apnic.net
 trust_level: high
 category: IP Security
 status: review
-bias_risk: low
-bias_note: ''
+bias_risk: medium
+bias_note: APNIC의 자체 보고 형식 글로 자사 활동과 성과를 강조하는 서술이 많아 긍정적 성과 위주로 보일 수 있으며, 외부 검증 자료나
+  구체적 지표는 제한적임.
 published_at: Mon, 29 Ju
-collected_at: '2026-07-02'
-reviewed_at: '2026-07-02'
-importance_score: 3
-review_score: 0.6
-hitl_route: needs_human_review
+collected_at: '2026-07-03'
+reviewed_at: '2026-07-03'
+importance_score: 4
+review_score: 0.8
+hitl_route: approval_pending
 topic_tags:
-- iso27001
+- iso_27001
 - dast
 - sast
-- vulnerability-management
-- patch-management
+- hackerone
 - rhel9
 - containerization
+- vulnerability_management
+- ai
 recollect_required: false
-review_required: false
+review_required: true
 is_published: false
 ---
 
 # 요약
 
-APNIC는 회원과 인터넷 커뮤니티가 의존하는 서비스의 보안과 복원력을 강화하기 위해 지속적인 보안 운영을 수행하고 있습니다. ISO/IEC 27001 기반의 정보보호관리체계 아래 인프라 현대화, 애플리케이션 보안 점검, 데이터 보존 관리, 취약점 대응, 패치 운영을 병행하고 있습니다. 최근에는 EOL CentOS Linux 호스트를 컨테이너 플랫폼 또는 RHEL9로 전환했고, 핵심 애플리케이션에 DAST를 확대 적용했습니다. 또한 AI 확산으로 취약점 공개와 악용 속도가 빨라지는 환경에 맞춰 테스트 환경을 생산성과 더 가깝게 개선하고 있습니다.
+APNIC은 ISO/IEC 27001 기반 정보보안관리 체계를 바탕으로 코어 인프라와 운영 기반을 현대화해 보안과 복원력을 높이고 있다. 기존 CentOS 호스트를 컨테이너 플랫폼 또는 RHEL9로 전환했고, DAST를 도입해 기존 SAST 및 HackerOne 기반 취약점 리포팅과 결합하여 애플리케이션 보안을 강화했다. 데이터 보존 관리와 패치·취약점 대응 프로세스 개선, 2026년 테스트 환경 업그레이드로 패치 배포 속도 향상을 추진한다.
 
 # 핵심 포인트
 
-- ISO/IEC 27001 기반 정보보호관리체계로 보안 위험 식별·대응·통제를 운영
-- EOL CentOS Linux를 컨테이너 플랫폼 또는 RHEL9로 전환해 레거시 위험 축소
-- 핵심 애플리케이션에 DAST를 도입해 SAST, HackerOne 프로그램과 함께 취약점 점검 강화
-- 데이터 보존 관리와 패치 운영을 포함한 운영 프로세스를 정비해 보안 통제 효과를 유지
-- AI로 인해 취약점 공개와 악용 속도가 빨라져 더 빠른 테스트와 배포가 중요해짐
+- ISO/IEC 27001 기반의 정보보안관리체계로 위험 식별·대응·유효성 검토 수행
+- 엔드오브라이프 CentOS 호스트를 컨테이너화 또는 RHEL9로 전환해 레거시 리스크 축소
+- DAST 도입으로 실행 중 웹 애플리케이션·API 스캔을 SAST·버그바운티(HackerOne)와 결합
+- 데이터 보존 정책 준수 및 불필요 데이터 삭제로 리스크 축소
+- 테스트 환경을 프로덕션과 일관되게 업그레이드해 2026년 이후 패치·배포 속도 향상 기대
 
 # 뉴스레터 헤드라인
 
-APNIC ISO 27001 기반 보안과 DAST 강화
+APNIC, DAST·SAST·HackerOne로 보안 강화
 
 # 원문 링크
 

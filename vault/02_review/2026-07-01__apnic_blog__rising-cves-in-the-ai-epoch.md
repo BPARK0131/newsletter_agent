@@ -7,42 +7,45 @@ source_type: rss
 origin: curated_source
 domain: blog.apnic.net
 trust_level: high
-category: Other
+category: IP Security
 status: review
-bias_risk: low
-bias_note: ''
+bias_risk: medium
+bias_note: 기사에 Anthropic, OpenAI 등 특정 AI 도구와 ‘AI 가속’ 주장이 반복되어 AI 효과를 과장하거나 벤더 관련 기술을
+  홍보하는 뉘앙스가 있음.
 published_at: Wed, 01 Ju
-collected_at: '2026-07-02'
-reviewed_at: '2026-07-02'
-importance_score: 3
-review_score: 0.6
-hitl_route: needs_human_review
+collected_at: '2026-07-03'
+reviewed_at: '2026-07-03'
+importance_score: 4
+review_score: 0.8
+hitl_route: approval_pending
 topic_tags:
 - cve
-- vulnerability-management
-- ai_security
+- ai
+- sbom
 - epss
-- cisa-kev
+- cisa_kev
 recollect_required: false
-review_required: false
+review_required: true
 is_published: false
 ---
 
 # 요약
 
-2026년 CVE 수가 당초 예측보다 46% 이상 증가할 것으로 보이지만, 이는 곧바로 위험 증가를 뜻하지는 않는다고 분석한다. AI 기반 취약점 발견 도구와 CVE 등록 확대, 오픈소스 프로젝트에 대한 추가 점검이 증가 배경으로 제시된다. 실제로는 CISA KEV나 EPSS 상위 구간처럼 악용 가능성이 확인된 취약점 규모는 대체로 큰 변화가 없다고 설명한다. 따라서 방어 측면의 과제는 CVE 총량이 아니라 실제로 중요한 취약점을 선별해 빠르게 대응하는 데 있다.
+FIRST 보고서 업데이트에 따르면 2026년 CVE 총량이 당초 전망보다 약 46% 초과해 연간 약 66,000건 수준으로 추정된다.
+증가는 주로 AI 보조 취약점 탐지와 CNA의 백로그 정리, GitHub 보안 자문 확대 등 보고 구조 변화에 따른 것으로, 전체 심각 취약점의 악용 지표(CISA KEV나 EPSS>10%)는 대체로 안정적이다.
+핵심 메시지는 취약점 건수 증가는 가시성 확대의 결과이며, 방어측은 노이즈에서 유의미한 취약점을 선별하고 자동화·런타임 모니터링·동적 자산 식별을 강화해야 한다.
+에페메랄 소프트웨어에서 발생하는 미등록 마이크로 취약점은 전통적 CVE 기반 관리로는 놓치기 쉬워 SBOM의 동적 갱신과 런타임 대응이 필요하다.
 
 # 핵심 포인트
 
-- AI 보조 취약점 발견으로 CVE 공개 수가 크게 늘고 있다.
-- CVE 증가의 배경에는 backlog 정리, GitHub Security Advisories 확대, 오픈소스 재점검이 있다.
-- 총 공개량은 늘었지만 실제 악용 취약점과 고위험군은 상대적으로 평평하다.
-- 방어자는 CVE 숫자보다 자산 규모와 노출 범위에 맞춰 대응 체계를 조정해야 한다.
-- AI는 탐지와 악용뿐 아니라 자동 수정과 패치, 탐지 강화에도 활용될 수 있다.
+- 2026년 CVE 볼륨이 예측치 대비 약 46% 증가해 연간 약 66,000건 수준으로 추정
+- 증가는 AI 보조 취약점 발견과 CNA 백로그 해소, GitHub 보안 자문 확대 등 구조적 요인에 기인
+- 중요 악용 취약점 지표(CISA KEV, EPSS>10%)는 상대적으로 안정적이어서 전체 위험이 동일 비율로 증가한 것은 아님
+- 에페메랄 소프트웨어와 미등록 마이크로 취약점 대응을 위해 동적 자산 발견, 자동화된 패치·런타임 모니터링, 유연한 SBOM이 필요함
 
 # 뉴스레터 헤드라인
 
-AI 시대 CVE 급증과 취약점 발견 변화
+AI 보조 발견으로 늘어난 CVE와 SBOM 대응
 
 # 원문 링크
 

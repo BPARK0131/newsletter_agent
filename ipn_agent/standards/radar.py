@@ -26,10 +26,13 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from dotenv import load_dotenv
-load_dotenv()
 
 from ipn_agent.core.tool_logger import log_tool_event
-from ipn_agent.paths import PROJECT_DIR
+from ipn_agent.paths import PROJECT_DIR, ensure_vault_path_env
+from ipn_agent.vault.utils import get_vault_path
+
+load_dotenv()
+ensure_vault_path_env()
 
 if hasattr(sys.stdout, "reconfigure"):
     try:
@@ -259,10 +262,7 @@ def build_radar_markdown(
 
 
 def run(dry_run: bool = False) -> None:
-    vault_path = os.environ.get("OBSIDIAN_VAULT_PATH", "")
-    if not vault_path:
-        print("[ERROR] OBSIDIAN_VAULT_PATH 환경변수 미설정")
-        sys.exit(1)
+    vault_path = str(get_vault_path())
 
     vault = Path(vault_path)
     ietf_cfg = load_ietf_source_config()

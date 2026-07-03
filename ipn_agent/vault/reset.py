@@ -27,7 +27,12 @@ import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
+
+from ipn_agent.paths import ensure_vault_path_env
+from ipn_agent.vault.utils import get_vault_path
+
 load_dotenv()
+ensure_vault_path_env()
 
 # Windows 터미널 인코딩
 if hasattr(sys.stdout, "reconfigure"):
@@ -69,14 +74,6 @@ KEEP_FILENAMES = {".gitkeep"}
 # ═══════════════════════════════════════════════════════════════
 # 유틸
 # ═══════════════════════════════════════════════════════════════
-
-def get_vault_path() -> Path:
-    vault_path = os.environ.get("OBSIDIAN_VAULT_PATH", "")
-    if not vault_path:
-        print("[ERROR] OBSIDIAN_VAULT_PATH 환경변수 미설정")
-        sys.exit(1)
-    return Path(vault_path)
-
 
 def collect_md_files(phase_dir: Path) -> list[Path]:
     """Phase 폴더 아래 삭제 대상 .md 파일 목록 (KEEP 제외)."""

@@ -16,6 +16,7 @@ from ipn_agent.orchestrator.newsletter import (
     obsidian_loader_node,
     standards_linker_node,
 )
+from ipn_agent.vault.utils import get_vault_path
 
 
 @dataclass
@@ -127,10 +128,7 @@ def run_editor_for_paths(
     force: bool = False,
     load_all_approved: bool = False,
 ) -> DraftResult | None:
-    vault_path = os.environ.get("OBSIDIAN_VAULT_PATH", "")
-    if not vault_path:
-        print("[ERROR] OBSIDIAN_VAULT_PATH 미설정")
-        return None
+    vault_path = str(get_vault_path())
     if not approved_rel_paths and not force and not load_all_approved:
         print("[WARN] draft 대상 approved 경로 없음")
         return None

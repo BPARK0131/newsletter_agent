@@ -18,6 +18,8 @@ import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
 
+from ipn_agent.paths import ensure_vault_path_env
+
 from ipn_agent.core.mvp_limits import mvp_limits_summary
 from ipn_agent.review.metadata import source_type_badge
 from ipn_agent.standards.radar import WG_CONTEXT, load_ietf_source_config
@@ -64,6 +66,7 @@ from ipn_agent.vault.utils import (
 )
 
 load_dotenv()
+ensure_vault_path_env()
 
 
 def _bias_badge(bias: str) -> str:
